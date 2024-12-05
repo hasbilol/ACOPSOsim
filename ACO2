@@ -1,0 +1,140 @@
+import tkinter as tk
+from tkinter import ttk, font as tkFont
+import numpy as np
+from scipy.spatial import Delaunay
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import networkx as nx
+
+# Initialize global variables
+def initialization():
+    global robots, END_XY, OBSTACLES_XY, POINTS, triangulation, co, cf, G, shortest_path, pheromones, velocities, particles, gbests, gb
+    robots = []
+    END_XY = []
+    OBSTACLES_XY = []
+    POINTS = []
+    co = []
+    cf = []
+    triangulation = None
+    G = nx.Graph()
+    shortest_path = []
+    pheromones = []
+    velocities = []
+    particles = []
+    gbests = []
+    gb = []
+
+initialization()
+
+# Calculate Euclidean distance
+def calculate_distance(point1, point2):
+    return np.linalg.norm(np.array(point1) - np.array(point2))
+
+# Triangulate points
+def triangulate():
+    global triangulation, POINTS, co, cf
+    triangulation = Delaunay(POINTS)
+    for triangle in triangulation.simplices:
+        if is_triangle_in_obstacle(triangle):
+            co.append(triangle)
+        else:
+            cf.append(triangle)
+
+# Check if a triangle intersects obstacles
+def is_triangle_in_obstacle(triangle):
+    for obs in OBSTACLES_XY:
+        if all(np.all(np.isclose(triangulation.points[vertex], obs), axis=1).any() for vertex in triangle):
+            return True
+    return False
+
+# Initialize ACO pheromones
+def initialize_pheromones():
+    global pheromones
+    pheromones = {edge: 1.0 for edge in G.edges}
+
+# Run ACO
+def aco_optimization(start, end, num_ants=10, iterations=50, alpha=1, beta=2, evaporation=0.5):
+    global G, pheromones
+    best_path = None
+    best_path_length = float('inf')
+
+    for _ in range(iterations):
+        paths = []
+        path_lengths = []
+        for _ in range(num_ants):
+            current = start
+            path = [current]
+            length = 0
+            while current != end:
+                neighbors = list(G.neighbors(current))
+                probabilities = [pheromones[(current, neighbor)] ** alpha * (1 / G[current][neighbor]['weight']) ** beta for neighbor in neighbors]
+                probabilities /= sum(probabilities)
+                next_node = np.random.choice(neighbors, p=probabilities)
+                path.append(next_node)
+                length += G[current][next_node]['weight']
+                current = next_node
+            paths.append(path)
+            path_lengths.append(length)
+
+        # Update pheromones
+        for edge in pheromones:
+            pheromones[edge] *= (1 - evaporation)
+        for path, length in zip(paths, path_lengths):
+            for i in range(len(path) - 1):
+                pheromones[(path[i], path[i + 1])] += 1 / length
+
+        # Track best path
+        min_length = min(path_lengths)
+        if min_length < best_path_length:
+            best_path_length = min_length
+            best_path = paths[np.argmin(path_lengths)]
+
+    return best_path, best_path_length
+
+# Run PSO
+def pso_optimization(midpoints, num_particles=50, iterations=100):
+    global particles, velocities, gbests, gb
+    lb = np.min(midpoints, axis=0)
+    ub = np.max(midpoints, axis=0)
+    particles = np.random.uniform(lb, ub, size=(num_particles, midpoints.shape[0], 2))
+    velocities = np.zeros_like(particles)
+    gbests = particles[0]
+    global_best = particles[0]
+
+    for _ in range(iterations):
+        for particle in particles:
+            cost = sum(calculate_distance(particle[i], particle[i + 1]) for i in range(len(particle) - 1))
+            if cost < sum(calculate_distance(global_best[i], global_best[i + 1]) for i in range(len(global_best) - 1)):
+                global_best = particle
+        velocities = 0.5 * velocities + 1.5 * (gbests - particles) + 1.5 * (global_best - particles)
+        particles += velocities
+    return global_best
+
+# Run hybrid ACO-PSO
+def hybrid_aco_pso():
+    global shortest_path, G
+    for robot in robots:
+        start = tuple(sorted(triangulation.simplices[triangulation.find_simplex(robot)]))
+        end = tuple(sorted(triangulation.simplices[triangulation.find_simplex(END_XY)]))
+        path, _ = aco_optimization(start, end)
+        midpoints = triangulation.points[path]
+        refined_path = pso_optimization(midpoints)
+        shortest_path.append(refined_path)
+
+# GUI integration
+root = tk.Tk()
+root.title("Hybrid ACO-PSO Simulator")
+
+settings_frame = tk.Frame(root)
+settings_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
+simulation_frame = tk.Frame(root)
+simulation_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+# Buttons
+simulate_button = tk.Button(settings_frame, text="Simulate", command=hybrid_aco_pso)
+simulate_button.pack()
+reset_button = tk.Button(settings_frame, text="Reset", command=initialization)
+reset_button.pack()
+
+root.mainloop()

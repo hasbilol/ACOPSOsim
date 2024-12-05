@@ -1,0 +1,102 @@
+import tkinter as tk
+from tkinter import font as tkFont
+from tkinter import ttk
+import numpy as np
+from scipy.spatial import Delaunay
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import networkx as nx
+
+def initialization():
+    global end_point, robots, START_XY, END_XY, OBSTACLES_XY, OBSTACLES, POINTS, co, cf, triangulation, G, shortest_path, pheromone_matrix
+    end_point = None  # Flag to track if end point is placed
+    robots = []
+    START_XY = []
+    END_XY = []
+    OBSTACLES_XY = []
+    OBSTACLES = []
+    POINTS = []
+    co = []
+    cf = []
+    triangulation = None
+    G = nx.Graph()
+    shortest_path = []
+    pheromone_matrix = None
+
+initialization()
+
+def calculate_distance(point1, point2):
+    return np.linalg.norm(np.array(point1) - np.array(point2))
+
+def initialize_pheromone_matrix(num_nodes):
+    return np.ones((num_nodes, num_nodes))
+
+def construct_path(start, end, graph, pheromone_matrix, heuristic_matrix, alpha=1, beta=1):
+    path = [start]
+    current_node = start
+
+    while current_node != end:
+        neighbors = list(graph.neighbors(current_node))
+        probabilities = []
+
+        for neighbor in neighbors:
+            pheromone = pheromone_matrix[current_node, neighbor]
+            heuristic = heuristic_matrix[current_node, neighbor]
+            probabilities.append((pheromone ** alpha) * (heuristic ** beta))
+
+        probabilities = np.array(probabilities) / sum(probabilities)
+        next_node = np.random.choice(neighbors, p=probabilities)
+        path.append(next_node)
+        current_node = next_node
+
+    return path
+
+def update_pheromones(pheromone_matrix, paths, path_lengths, evaporation_rate, Q):
+    pheromone_matrix *= (1 - evaporation_rate)
+
+    for path, length in zip(paths, path_lengths):
+        for i in range(len(path) - 1):
+            pheromone_matrix[path[i], path[i + 1]] += Q / length
+
+    return pheromone_matrix
+
+def aco_optimization(graph, start, end, num_ants, num_iterations, evaporation_rate, Q):
+    num_nodes = len(graph.nodes)
+    pheromone_matrix = initialize_pheromone_matrix(num_nodes)
+    heuristic_matrix = np.zeros((num_nodes, num_nodes))
+
+    for edge in graph.edges(data=True):
+        node1, node2, data = edge
+        distance = data['weight']
+        heuristic_matrix[node1, node2] = heuristic_matrix[node2, node1] = 1 / distance
+
+    best_path = None
+    best_length = float('inf')
+
+    for iteration in range(num_iterations):
+        paths = []
+        path_lengths = []
+
+        for ant in range(num_ants):
+            path = construct_path(start, end, graph, pheromone_matrix, heuristic_matrix)
+            length = sum(graph.edges[path[i], path[i + 1]]['weight'] for i in range(len(path) - 1))
+            paths.append(path)
+            path_lengths.append(length)
+
+            if length < best_length:
+                best_path = path
+                best_length = length
+
+        pheromone_matrix = update_pheromones(pheromone_matrix, paths, path_lengths, evaporation_rate, Q)
+
+    return best_path, best_length
+
+def optimize():
+    global shortest_path, G, START_XY, END_XY
+    start_node = list(G.nodes).index(tuple(sorted(triangulation.simplices[triangulation.find_simplex(START_XY)])))
+    end_node = list(G.nodes).index(tuple(sorted(triangulation.simplices[triangulation.find_simplex(END_XY)])))
+
+    shortest_path, best_length = aco_optimization(G, start_node, end_node, num_ants=10, num_iterations=50, evaporation_rate=0.1, Q=100)
+    print(f"Optimized path: {shortest_path}, Length: {best_length}")
+
+# GUI and Simulation Logic remains unchanged for displaying paths
