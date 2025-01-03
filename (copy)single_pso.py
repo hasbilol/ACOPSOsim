@@ -7,12 +7,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg,NavigationToolbar2Tk
 import networkx as nx
 
-
 def initialization():
-    global end_point,robots,start_xy,END_XY,OBSTACLES_XY,OBSTACLES,POINTS,co,cf,triangulation,G,shortest_path,ub_x,ub_y,lb_x,lb_y,gbests,midpoints,sp,gb
+    global end_point,robots,START_XY,END_XY,OBSTACLES_XY,OBSTACLES,POINTS,co,cf,triangulation,G,shortest_path,ub_x,ub_y,lb_x,lb_y,gbests,midpoints
     end_point = None  # Flag to track if end point is placed
     robots = []
-    start_xy = []   
+    START_XY = []
     END_XY = []
     OBSTACLES_XY = []
     OBSTACLES = []
@@ -22,19 +21,41 @@ def initialization():
     triangulation = None
     G = nx.Graph()
     shortest_path = []
+    ub_x = []
+    lb_x = []
+    ub_y = []
+    lb_y = []
     gbests = []
     midpoints = []
-    sp = []
-    gb = []
     
 
 initialization()
 
-
 # Set initial map size
 initial_map_size = 900
-colors = ["gold","blue","deeppink"]
 
+def draw_obstacle():
+    global obstacle_points
+    num_points = len(obstacle_points)
+
+    # if num_points < 3:
+    #     coord_label.config(text="At least 3 points are needed to form a polygon.")
+    #     return
+
+    # Draw lines connecting the points to form a closed polygon
+    for i in range(num_points):
+        x1, y1 = obstacle_points[i]
+        x2, y2 = obstacle_points[(i + 1) % num_points]
+        canvas.create_line(x1, y1, x2, y2, fill="orange")
+
+    # Add the completed polygon to OBSTACLES_XY
+    OBSTACLES_XY.append(np.array([[pt[0], initial_map_size - pt[1]] for pt in obstacle_points]))
+    obstacle_points = []  # Reset points list
+
+def finalize_obstacle():
+    """Finalize the current obstacle when the user clicks a button."""
+    draw_obstacle()
+    coord_label.config(text="Polygon obstacle finalized. You can start a new obstacle.")    
 
 
 def get_map_dimensions():
@@ -63,13 +84,13 @@ def calculate_edge_midpoints(triangle):
 
 def initialize_inputs():
     try:
-        global initial_map_size,OBSTACLES_XY,POINTS,OBSTACLES,start_xy,END_XY
+        global initial_map_size,OBSTACLES_XY,POINTS,OBSTACLES,START_XY,END_XY
         MAP_LENGTH = initial_map_size
         MAP_WIDTH = initial_map_size
 
         # Define the coordinates of the points for the map boundaries
         MAP = np.array([[0.0, 0.0], [0.0, MAP_WIDTH], [MAP_LENGTH, MAP_WIDTH], [MAP_LENGTH, 0.0]])
-        start_xy = robots[0] 
+        START_XY = robots[0] 
         END_XY = end_point
 
         # Define list of obstacle indices
@@ -87,6 +108,7 @@ def initialize_inputs():
                 index = np.where(np.all(POINTS == point, axis=1))
                 if len(index[0]) > 0:
                     OBSTACLES[i].append(index[0][0])
+
 
     except ValueError as e:
         print(f"ValueError: {e}")
@@ -118,6 +140,7 @@ def triangulate():
     co = np.array(co)
     cf = np.array(np.unique(cf,axis=0))
 
+
 def display_graph(fig,frame):
     graph = FigureCanvasTkAgg(fig,master = frame)
     graph.get_tk_widget().pack(pady=5)
@@ -129,7 +152,6 @@ def display_graph(fig,frame):
 def triangulation_window():
     global co,triangulation
     tri = tk.Toplevel()
-    tri.iconbitmap("PSO_Logo2.ico")
     tri.title("Triangular Decomposition")
     tri_frame = tk.Frame(tri)
     tri_frame.grid(column=1,row=0)
@@ -140,6 +162,14 @@ def triangulation_window():
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
+    # Annotate and plot 'START' in blue
+    ax.plot(START_XY[0], START_XY[1], 'o', color='blue')
+    ax.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
+
+    # Annotate and plot 'END' in red
+    ax.plot(END_XY[0], END_XY[1], 'o', color='red')
+    ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
+
     for triangle in co:
         co_indices = np.array(triangle)
         ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1],  color = 'darkorange')
@@ -148,49 +178,49 @@ def triangulation_window():
 
 
 def dijkstra():
-    global shortest_path,G,cf,triangulation,sp
-    for i in range(len(robots)):
-        start_xy = robots[i]
-        start_tri = (sorted(triangulation.simplices[triangulation.find_simplex(start_xy)]))
-        goal_tri = (sorted(triangulation.simplices[triangulation.find_simplex(END_XY)]))
+    global shortest_path,G,cf,triangulation,START_XY,END_XY
+    start_tri = (sorted(triangulation.simplices[triangulation.find_simplex(START_XY)]))
+    goal_tri = (sorted(triangulation.simplices[triangulation.find_simplex(END_XY)]))
 
-        # Add nodes (triangles) to the graph
-        for simplex in cf:
-            triangle_nodes = tuple(sorted(simplex))  # Sort the vertices to create a unique identifier
-            G.add_node(triangle_nodes)
 
-        # Calculate the distance (e.g., Euclidean distance) between triangles and add edges
-        for node1 in G.nodes:
-            for node2 in G.nodes:
-                if node1 != node2 and len(set(node1).intersection(node2)) == 2:
-                    triangle1 = triangulation.points[list(node1)]
-                    triangle2 = triangulation.points[list(node2)]
-                    distance = np.linalg.norm(triangle1.mean(axis=0) - triangle2.mean(axis=0))
-                    G.add_edge(node1, node2, weight=distance)
+    # Add nodes (triangles) to the graph
+    for simplex in cf:
+        triangle_nodes = tuple(sorted(simplex))  # Sort the vertices to create a unique identifier
+        G.add_node(triangle_nodes)
 
-        # Perform Dijkstra's algorithm to find the shortest path between two triangles
-        # triangle input is backwards of output from simplexes
-        start_node = (start_tri[0], start_tri[1], start_tri[2])  # Replace with your desired starting triangle
-        end_node = (goal_tri[0], goal_tri[1], goal_tri[2])  # Replace with your desired ending triangle
+    # Calculate the distance (e.g., Euclidean distance) between triangles and add edges
+    for node1 in G.nodes:
+        for node2 in G.nodes:
+            if node1 != node2 and len(set(node1).intersection(node2)) == 2:
+                triangle1 = triangulation.points[list(node1)]
+                triangle2 = triangulation.points[list(node2)]
+                distance = np.linalg.norm(triangle1.mean(axis=0) - triangle2.mean(axis=0))
+                G.add_edge(node1, node2, weight=distance)
 
-        sp.append(nx.shortest_path(G, source=start_node, target=end_node, weight='weight'))
+    # Perform Dijkstra's algorithm to find the shortest path between two triangles
+    # triangle input is backwards of output from simplexes
+    start_node = (start_tri[0], start_tri[1], start_tri[2])  # Replace with your desired starting triangle
+    end_node = (goal_tri[0], goal_tri[1], goal_tri[2])  # Replace with your desired ending triangle
+
+    shortest_path = nx.shortest_path(G, source=start_node, target=end_node, weight='weight')
 
 # Define objective function
 def distance(point1, point2):
     return np.sqrt(np.sum((np.array(point1) - np.array(point2)) ** 2))
 
-def obj_function_distance(j,particles):
-    global total_distance
-    total_distance = distance(robots[j][0],[particles[0],particles[1]])
+def obj_function_distance(particles):
+    global total_distance,START_XY,END_XY
+    start = START_XY
+    end = END_XY
+    total_distance = distance(start, (particles[0], particles[1]))
     for i in range(0, len(particles) - 3, 2):
         total_distance += distance((particles[i], particles[i + 1]), (particles[i + 2], particles[i + 3]))
-    total_distance += distance(robots[j],[particles[0],particles[1]])
+    total_distance += distance((particles[-2], particles[-1]), end)
     return total_distance
 
 def dijkstra_window():
-    global G,shortest_path,co,midpoints,sp,colors
+    global G,shortest_path,co,midpoints
     dji = tk.Toplevel()
-    dji.iconbitmap("PSO_Logo2.ico")
     dji.title("Dijkstra's Algorithm")
     dji_frame = tk.Frame(dji)
     dji_frame.grid(column=1,row=1,padx=10)
@@ -200,77 +230,57 @@ def dijkstra_window():
     # Calculate midpoints for all triangles
     triangle_midpoints = {}
     for triangle in G.nodes:
-        if len(midpoints)==len(robots):
-            break
-        else:
-            triangle_indices = np.array(triangle)
-            triangle_points = triangulation.points[triangle_indices]
-            edge_midpoints = calculate_edge_midpoints(triangle_points)
-            triangle_midpoints[triangle] = edge_midpoints
+        triangle_indices = np.array(triangle)
+        triangle_points = triangulation.points[triangle_indices]
+        edge_midpoints = calculate_edge_midpoints(triangle_points)
+        triangle_midpoints[triangle] = edge_midpoints
+
+    midpoints = []
+
+    # Draw lines through midpoints
+    for i in range(len(shortest_path) - 1):
+        current_triangle = shortest_path[i]
+        next_triangle = shortest_path[i + 1]
+        for element in triangle_midpoints[current_triangle]:
+            if any(np.array_equal(element,next_elem)for next_elem in triangle_midpoints[next_triangle]):
+                next_midpoints = element
+        midpoints.append(next_midpoints)
         
-    for i in range(len(robots)):
-        if len(midpoints)==len(robots):
-            break
-        else:
-            midpoints.append([])
-
-            # Draw lines through midpoints
-            for j in range(len(sp[i]) - 1):
-                current_triangle = sp[i][j]
-                next_triangle = sp[i][j+1]
-                for element in triangle_midpoints[current_triangle]:
-                    if any(np.array_equal(element,next_elem)for next_elem in triangle_midpoints[next_triangle]):
-                        next_midpoints = element
-                midpoints[i].extend(next_midpoints)
-
     # Plot the original points and the generated triangles
     fig, ax = plt.subplots(figsize=(9,9))
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-    for i in robots:
-        # Annotate and plot 'START' in blue
-        ax.plot(i[0], i[1], 'o', color=colors[robots.index(i)])
-        ax.text(i[0], i[1], ' ROBOT '+str(robots.index(i)+1), verticalalignment='bottom', horizontalalignment='right', color=colors[robots.index(i)], fontweight='bold')
-
+    # Annotate and plot 'START' in blue
+    ax.plot(START_XY[0], START_XY[1], 'o', color='blue')
+    ax.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
     # Annotate and plot 'END' in red
     ax.plot(END_XY[0], END_XY[1], 'o', color='red')
     ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
     # Draw lines connecting midpoints
-    for midpoint in midpoints:
-        for i in range(0,len(midpoint)-2,2):
-            ax.plot([midpoint[i],midpoint[i+2]],
-                    [midpoint[i+1],midpoint[i+3]],
-                    color=colors[midpoints.index(midpoint)], linestyle='--')
-            
-        ax.plot([robots[midpoints.index(midpoint)][0],midpoint[0]],[robots[midpoints.index(midpoint)][1],midpoint[1]],color=colors[midpoints.index(midpoint)],linestyle='--')
-        ax.plot([END_XY[0],midpoint[-2]],[END_XY[1],midpoint[-1]],color=colors[midpoints.index(midpoint)],linestyle='--')
-            
+    for i in range(len(midpoints)-1):
+        ax.plot([midpoints[i][0],midpoints[i+1][0]],
+                [midpoints[i][1],midpoints[i+1][1]],
+                color='red', linestyle='--')
+    ax.plot([START_XY[0], midpoints[0][0]], [START_XY[1], midpoints[0][1]], color='red', linestyle='--')
+    ax.plot([END_XY[0], midpoints[-1][0]], [END_XY[1], midpoints[-1][1]], color='red', linestyle='--')
+
+    # Highlight the triangles in the shortest path
+    for triangle in shortest_path:
+        triangle_indices = np.array(triangle)
+        ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
 
     for triangle in co:
         co_indices = np.array(triangle)
         ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
 
     display_graph(fig,dji_frame)
-
-    data = [
-    ["Robot",  "Djikstra's Algorithm\nDistance"],
-    ]
-
-    for i in range(len(robots)):
-        j=i+1
-        data.append(["ROBOT "+str(j),"{:.2f}".format(obj_function_distance(i,midpoints[i]))])
-
-    data_frame = tk.Frame(dji)
-    data_frame.grid(column=2,row=1,padx=10,pady=10)
-
-    for i, row in enumerate(data):
-        for j, cell in enumerate(row):
-            label = tk.Label(data_frame, text=cell,borderwidth=1, relief="solid",padx=10,pady
-            =10,font=("Helvetica",16))
-            label.grid(row=i, column=j, sticky="nsew")
+    res_frame = tk.Frame(dji)
+    res_frame.grid(column=2,row=1,padx=10)
+    res_label = tk.Label(res_frame, text="Distance: "+"{:.2f}".format(obj_function_distance(midpoints))+" units", font=("Helvetica", 16))
+    res_label.pack(pady=10)
 
 # Define update methods
 
@@ -281,74 +291,61 @@ def get_next_position(particles, velocity, lb, ub):
     return np.clip(particles + velocity, lb, ub)
 
 def optimize():
-    global shortest_path,gb,triangulation,sp,gbests,END_XY
-    shortest_path_xy = []
-    gbests = [[] for _ in range(len(robots))]
-    gb = []
+    global shortest_path,gb,ub_x,ub_y,lb_x,lb_y,triangulation
+    # Change the shortest path array into a numpy array with the coordinates of the triangles instead of the points
+    shortest_path_xy = triangulation.points[np.array(shortest_path)]
+    path_edges = []
+    for i in range(len(shortest_path_xy) - 1):
+        current_triangle = shortest_path_xy[i]
+        next_triangle = shortest_path_xy[i + 1]
+        edge = []
+        for element in current_triangle:
+            if any(np.array_equal(element,next_elem)for next_elem in next_triangle):
+                edge.append(element)
+        path_edges.append(edge)
 
-    for shortest_path in sp:
-        # Change the shortest path array into a numpy array with the coordinates of the triangles instead of the points
-        shortest_path_xy.append(triangulation.points[np.array(shortest_path)])
-    
-    for j in range(len(shortest_path_xy)):
-        path_edges = []
-        ub_x = []
-        lb_x = []
-        ub_y = []
-        lb_y = []
+    for i in range(len(path_edges)):
+        ub_x.append(max(path_edges[i][0][0], path_edges[i][1][0]))
+        lb_x.append(min(path_edges[i][0][0], path_edges[i][1][0]))
+        ub_y.append(max(path_edges[i][0][1], path_edges[i][1][1]))
+        lb_y.append(min(path_edges[i][0][1], path_edges[i][1][1]))
 
-        for i in range(len(shortest_path_xy[j]) - 1):
-            current_triangle = shortest_path_xy[j][i]
-            next_triangle = shortest_path_xy[j][i + 1]
-            edge = []
-            for element in current_triangle:
-                if any(np.array_equal(element,next_elem)for next_elem in next_triangle):
-                    edge.append(element)
-            path_edges.append(edge)
+    # Combining lb_x and lb_y in alternating order starting from lb_x
+    lb = np.array([val for pair in zip(lb_x, lb_y) for val in pair])
 
-        for i in range(len(path_edges)):
-            ub_x.append(max(path_edges[i][0][0], path_edges[i][1][0]))
-            lb_x.append(min(path_edges[i][0][0], path_edges[i][1][0]))
-            ub_y.append(max(path_edges[i][0][1], path_edges[i][1][1]))
-            lb_y.append(min(path_edges[i][0][1], path_edges[i][1][1]))
+    # Combining ub_x and ub_y in alternating order starting from ub_x
+    ub = np.array([val for pair in zip(ub_x, ub_y) for val in pair])
+    d = len(shortest_path) - 1
+    n = 2 * d
 
-        # Combining lb_x and lb_y in alternating order starting from lb_x
-        lb = np.array([val for pair in zip(lb_x, lb_y) for val in pair])
+    particles = [np.random.uniform(lb, ub) for _ in range(n)]
+    particles = np.array(particles)
+    velocity = np.zeros_like(particles)
+    n_iter = 1000
+    c1 = np.zeros_like(particles)
+    c2 = 0.5
+    gb = particles[np.argmin(np.apply_along_axis(obj_function_distance, 1, particles.reshape(-1, n)))]
 
-        # Combining ub_x and ub_y in alternating order starting from ub_x
-        ub = np.array([val for pair in zip(ub_x, ub_y) for val in pair])
+    # This variation of PSO emphasizes global best
 
-        d = len(sp[j]) - 1
-        n = 2 * d
-        particles = [np.random.uniform(lb, ub) for _ in range(n)]
-        particles = np.array(particles)
-        velocity = np.zeros_like(particles)
-        n_iter = 1000
-        c1 = np.zeros_like(particles)
-        c2 = 0.5
-        gb.append(particles[np.argmin(np.apply_along_axis(lambda e:obj_function_distance(j,e), 1, particles.reshape(-1, n)))])
+    # Main loop for PSO
+    for i in range(n_iter):
+        # Update global best
+        current_min = np.argmin(np.apply_along_axis(obj_function_distance, 1, particles.reshape(-1, n)))
+        current_gbest = particles[current_min]
+        gbests.append(current_gbest)
+        if obj_function_distance(current_gbest) < obj_function_distance(gb):
+            gb = current_gbest
 
-        # This variation of PSO emphasizes global best
-
-        # Main loop for PSO
-        for i in range(n_iter):
-            # Update global best
-            current_min = np.argmin(np.apply_along_axis(lambda e:obj_function_distance(j,e), 1, particles.reshape(-1, n)))
-            current_gbest = particles[current_min]
-            gbests[j].append(current_gbest)
-            if obj_function_distance(j,current_gbest) < obj_function_distance(j,gb[j]):
-                gb[j]= current_gbest
-
-            # Update weights, particle velocities and positions
-            c1 = 0. * (pow(0.99, i)) * np.random.uniform(lb, ub)
-            velocity = get_next_velocity(velocity, c1, c2, gb[j], particles)
-            particles = get_next_position(particles, velocity, lb, ub)
+        # Update weights, particle velocities and positions
+        c1 = 0. * (pow(0.99, i)) * np.random.uniform(lb, ub)
+        velocity = get_next_velocity(velocity, c1, c2, gb, particles)
+        particles = get_next_position(particles, velocity, lb, ub)
 
 
 def optimization_window():
-    global co,shortest_path,POINTS,triangulation,start_xy,END_XY,gb,colors
+    global co,shortest_path,POINTS,triangulation,START_XY,END_XY,gb
     opt = tk.Toplevel()
-    opt.iconbitmap("PSO_Logo2.ico")
     opt.title("Particle Swarm Optimization")
     opt_frame = tk.Frame(opt)
     opt_frame.grid(column=1,row=1,padx=10)
@@ -360,24 +357,27 @@ def optimization_window():
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-    for i in robots:
-        # Annotate and plot 'START' in blue
-        ax.plot(i[0], i[1], 'o', color=colors[robots.index(i)])
-        ax.text(i[0], i[1], ' ROBOT '+str(robots.index(i)+1), verticalalignment='bottom', horizontalalignment='right', color=colors[robots.index(i)], fontweight='bold')
+    # Annotate and plot 'START' in blue
+    ax.plot(START_XY[0], START_XY[1], 'o', color='blue')
+    ax.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
     # Annotate and plot 'END' in red
     ax.plot(END_XY[0], END_XY[1], 'o', color='red')
     ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
-    for gbs in range(len(gb)):
-        # Draw lines connecting global best particles
-        for i in range(0,len(gb[gbs])-2,2):
-            ax.plot([gb[gbs][i],gb[gbs][i+2]],
-                    [gb[gbs][i+1],gb[gbs][i+3]],
-                    color=colors[gbs], linestyle='-')
-            
-    ax.plot([robots[gbs][0],gb[gbs][0]],[robots[gbs][1],gb[gbs][1]],color=colors[gbs],linestyle='-')
-    ax.plot([END_XY[0],gb[gbs][-2]],[END_XY[1],gb[gbs][-1]],color=colors[gbs],linestyle='-')
+    # Draw lines connecting global best particles
+    for i in range(0,len(gb)-2,2):
+        ax.plot([gb[i],gb[i+2]],
+                [gb[i+1],gb[i+3]],
+                color='blue', linestyle='-')
+
+    ax.plot([START_XY[0],gb[0]],[START_XY[1],gb[1]],color='blue',linestyle='-')
+    ax.plot([END_XY[0],gb[-2]],[END_XY[1],gb[-1]],color='blue',linestyle='-')
+
+    # Highlight the triangles in the shortest path
+    for triangle in shortest_path:
+        triangle_indices = np.array(triangle)
+        ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
 
     for triangle in co:
         co_indices = np.array(triangle)
@@ -385,193 +385,153 @@ def optimization_window():
 
     display_graph(fig,opt_frame)
 
-    data = [
-    ["Robot",  "Particle Swarm Optimization\nDistance"],
-    ]
+    res2_frame = tk.Frame(opt)
+    res2_frame.grid(column=2,row=1,padx=10)
+    res2_label = tk.Label(res2_frame, text="Distance: "+"{:.2f}".format(obj_function_distance(gb))+" units", font=("Helvetica", 16))
+    res2_label.pack(pady=10)
 
-    for i in range(len(robots)):
-        j=i+1
-        data.append(["ROBOT "+str(j),"{:.2f}".format(obj_function_distance(i,gb[i]))])
-
-    data_frame = tk.Frame(opt)
-    data_frame.grid(column=2,row=1,padx=10,pady=10)
-
-    for i, row in enumerate(data):
-        for j, cell in enumerate(row):
-            label = tk.Label(data_frame, text=cell,borderwidth=1, relief="solid",padx=10,pady
-            =10,font=("Helvetica",16))
-            label.grid(row=i, column=j, sticky="nsew")
-
-    button_frame = tk.Frame(opt,padx=10,pady=10)
-    button_frame.grid(column=3,row=1)
-    label = tk.Label(button_frame,text="")
+    # Add the SIMULATION button
+    simulation_button = tk.Button(opt_frame, text="SIMULATION", command=simulation_window, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
+    simulation_button.pack(pady=10,padx=10,fill='x')
 
 
-    for i in range(len(robots)):
-        tk.Button(button_frame,text="ROBOT "+str(i+1)+" SIMULATION",command=lambda i=i:simulation_window(i),padx=10,pady=10).pack()
-
-
-
-def simulation_window(robot):
-    global gbests,co,shortest_path,robots
+def simulation_window():
+    global gbests,co,shortest_path
     plt.close('all')
     sim = tk.Toplevel()
-    sim.iconbitmap("PSO_Logo2.ico")
     sim.title("Particle Swarm Optmization Simulation")
     sim_frame = tk.Frame(sim)
-    sim_frame.grid(column=2,row=1,padx=10)
+    sim_frame.pack()
     gen = tk.Label(sim)
-    gen.grid(column=1,row=0,columnspan=2,pady=10)
-    fig,ax = plt.subplots(figsize=(9,9))
+    gen.pack()
 
-    for i in range(len(gbests[robot])):
-        gen['text'] = "Iteration " + str(i)
-        ax.clear()
-        x_values = [gbests[robot][i][j] for j in range(0, len(gbests[robot][i]), 2)]
-        y_values = [gbests[robot][i][j] for j in range(1, len(gbests[robot][i]), 2)]
+    for i in range(len(gbests)):
+        gen['text'] = "Generation " + str(i)
+        gen.update()
+        if i!=0:
+            plt.clf()
+        x_values = [gbests[i][j] for j in range(0, len(gbests[i]), 2)]
+        y_values = [gbests[i][j] for j in range(1, len(gbests[i]), 2)]
 
         # Plot the original points and the generated triangles
-        ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
-        ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
+        plt.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
+        plt.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
         # Annotate and plot 'START' in blue
-        ax.plot(robots[robot][0], robots[robot][1], 'o', color=colors[robot])
-        ax.text(robots[robot][0], robots[robot][1], ' ROBOT '+str(robot+1), verticalalignment='bottom', horizontalalignment='right', color=colors[robot], fontweight='bold')
+        plt.plot(START_XY[0], START_XY[1], 'o', color='blue')
+        plt.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
         # Annotate and plot 'END' in red
-        ax.plot(END_XY[0], END_XY[1], 'o', color='red')
-        ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
+        plt.plot(END_XY[0], END_XY[1], 'o', color='red')
+        plt.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
         # Highlight the triangles in the shortest path
         for triangle in shortest_path:
             triangle_indices = np.array(triangle)
-            ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
+            plt.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
 
         for triangle in co:
             co_indices = np.array(triangle)
-            ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
+            plt.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
+
+
 
         # Plotting the current generation's best solutions
-        ax.plot(x_values, y_values,'o')
-        fig.canvas.draw()
-        fig.canvas.flush_events()
-        plt.pause(0.1)  # Adjust the pause time as needed for animation speed
-   # Create a canvas in Tkinter and add the matplotlib figure to it
-    canvas = FigureCanvasTkAgg(fig, master=sim_frame)
-    canvas_widget = canvas.get_tk_widget()
-    canvas_widget.pack(fill=tk.BOTH, expand=True)
-    button = tk.Button(sim,text="CLOSE",command=sim.destroy())
-    button.grid(column=3,row=1,fill=tk.BOTH, expand=True)
+        plt.plot(x_values, y_values,'o')
 
+        plt.pause(0.1)  # Adjust the pause time as needed for animation speed
+    plt.draw()
+    plt.show()
+
+    display_graph(plt,sim_frame)
 
 def comparison_window():
-    global midpoints,gb,POINTS,start_xy,END_XY,shortest_path,co
+    global midpoints,gb,POINTS,START_XY,END_XY,shortest_path,co
     com = tk.Toplevel()
-    com.iconbitmap("PSO_Logo2.ico")
     com.title("Comparison of Pure Dijkstra's Algorithm vs Particle Swarm Optimization")
     com_frame = tk.Frame(com)
-    com_frame.grid(column=1,row=1,columnspan=2,padx=10)
+    com_frame.grid(column=2,row=1,padx=10)
     com_label = tk.Label(com, text="Comparison of Pure Dijkstra's Algorithm vs Particle Swarm Optimization", font=("Unispace", 16))
     com_label.grid(column=1,row=0,columnspan=2,pady=10)
     # Plot the original points and the generated triangles
-    fig, ax = plt.subplots(figsize=(9,9))
+    fig, ax = plt.subplots(figsize=(10,10))
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-    # Calculate midpoints for all triangles
-    triangle_midpoints = {}
-    for triangle in G.nodes:
-        if len(midpoints)==len(robots):
-            break
-        else:
+    if len(midpoints)==0:
+            # Calculate midpoints for all triangles
+        triangle_midpoints = {}
+        for triangle in G.nodes:
             triangle_indices = np.array(triangle)
             triangle_points = triangulation.points[triangle_indices]
             edge_midpoints = calculate_edge_midpoints(triangle_points)
             triangle_midpoints[triangle] = edge_midpoints
-            
-    for i in range(len(robots)):
-        if len(midpoints)==len(robots):
-            break
-        else:
-             midpoints.append([])
 
-            # Draw lines through midpoints
-        for j in range(len(sp[i]) - 1):
-            current_triangle = sp[i][j]
-            next_triangle = sp[i][j+1]
+        midpoints = []
+
+        # Draw lines through midpoints
+        for i in range(len(shortest_path) - 1):
+            current_triangle = shortest_path[i]
+            next_triangle = shortest_path[i + 1]
             for element in triangle_midpoints[current_triangle]:
                 if any(np.array_equal(element,next_elem)for next_elem in triangle_midpoints[next_triangle]):
                     next_midpoints = element
-            midpoints[i].extend(next_midpoints)
+            midpoints.append(next_midpoints)
 
-    for i in robots:
-        # Annotate and plot 'START' in blue
-        ax.plot(i[0], i[1], 'o', color=colors[robots.index(i)])
-        ax.text(i[0], i[1], ' ROBOT '+str(robots.index(i)+1), verticalalignment='bottom', horizontalalignment='right', color=colors[robots.index(i)], fontweight='bold')
+    # Annotate and plot 'START' in blue
+    ax.plot(START_XY[0], START_XY[1], 'o', color='blue')
+    ax.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
     # Annotate and plot 'END' in red
     ax.plot(END_XY[0], END_XY[1], 'o', color='red')
     ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
-    # Draw lines connecting midpoints
-    for midpoint in midpoints:
-        for i in range(0,len(midpoint)-2,2):
-            ax.plot([midpoint[i],midpoint[i+2]],
-                    [midpoint[i+1],midpoint[i+3]],
-                    color=colors[midpoints.index(midpoint)], linestyle='--')
-        ax.plot([robots[midpoints.index(midpoint)][0],midpoint[0]],[robots[midpoints.index(midpoint)][1],midpoint[1]],color=colors[midpoints.index(midpoint)],linestyle='--')
-        ax.plot([END_XY[0],midpoint[-2]],[END_XY[1],midpoint[-1]],color=colors[midpoints.index(midpoint)],linestyle='--')
+    # Draw lines connecting midpoints (Pure Dijkstra)
+    for i in range(len(midpoints)-1):
+        ax.plot([midpoints[i][0], midpoints[i+1][0]],
+                [midpoints[i][1], midpoints[i+1][1]],
+                color='red', linestyle='--', label='Pure Dijkstra' if i == 0 else "")
+        
+    ax.plot([START_XY[0], midpoints[0][0]], [START_XY[1], midpoints[0][1]], color='red', linestyle='--')
+    ax.plot([END_XY[0], midpoints[-1][0]], [END_XY[1], midpoints[-1][1]], color='red', linestyle='--')
+
+    # Highlight the triangles in the shortest path
+    for triangle in shortest_path:
+        triangle_indices = np.array(triangle)
+        ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
 
     for triangle in co:
         co_indices = np.array(triangle)
         ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
 
-    for gbs in range(len(gb)):
-
-        # Draw lines connecting global best particles
-        for i in range(0,len(gb[gbs])-2,2):
-            ax.plot([gb[gbs][i],gb[gbs][i+2]],
-                    [gb[gbs][i+1],gb[gbs][i+3]],
-                    color=colors[gbs], linestyle='-',label='Dijkstra + PSO' if i == 0 else "")
-        ax.plot([robots[gbs][0],gb[gbs][0]],[robots[gbs][1],gb[gbs][1]],color=colors[gbs],linestyle='-')
-        ax.plot([END_XY[0],gb[gbs][-2]],[END_XY[1],gb[gbs][-1]],color=colors[gbs],linestyle='-')
+    # Draw lines connecting global best particles (Dijkstra + PSO)
+    for i in range(0, len(gb)-2, 2):
+        ax.plot([gb[i], gb[i+2]],
+                [gb[i+1], gb[i+3]],
+                color='blue', linestyle='-', label='Dijkstra + PSO' if i == 0 else "")
+        
+    ax.plot([START_XY[0], gb[0]], [START_XY[1], gb[1]], color='blue', linestyle='-')
+    ax.plot([END_XY[0], gb[-2]], [END_XY[1], gb[-1]], color='blue', linestyle='-')
 
     # Adding the legend outside the plot to the right
     ax.legend(loc='center right', bbox_to_anchor=(1, 1))
 
+
     display_graph(fig,com_frame)
-    data = [
-        ["Robot", "Djikstra Algorithm\nDistance", "Particle Swarm\nOptimization Distance","Distance Decreased","Percentage Decreased"],
-    ]
 
-    percentage = []
-    for i in range(len(robots)):
-        j=i+1
-        percentage.append((obj_function_distance(i,midpoints[i])-obj_function_distance(i,gb[i]))/obj_function_distance(i,midpoints[i])*100)
-        data.append(["ROBOT "+str(j),"{:.2f}".format(obj_function_distance(i,midpoints[i])),"{:.2f}".format(obj_function_distance(i,gb[i])),"{:.2f}".format(obj_function_distance(i,midpoints[i])-obj_function_distance(i,gb[i])),"{:.2f}%".format(percentage[i])])
-
-    data_frame = tk.Frame(com)
-    data_frame.grid(column=3,row=1,padx=10,pady=10)
-
-    for i, row in enumerate(data):
-        for j, cell in enumerate(row):
-            label = tk.Label(data_frame, text=cell,borderwidth=1, relief="solid",padx=10,pady
-            =10,font=("Helvetica",16))
-            label.grid(row=i, column=j, sticky="nsew")
-
-    reduction_frame = tk.Frame(com)
-    label1 = tk.Label(reduction_frame,text="Average distance reduction: ",font=("Helvetica",16))
-    label2 = tk.Label(reduction_frame,text="{:.2f}%".format(sum(percentage)/len(percentage)),font=("Unispace",16),fg='green')
-    reduction_frame.grid(column=3,row =0,padx=10,pady=10)
-    label1.grid(column=0,row=0,padx=10,pady=10)
-    label2.grid(column=1,row=0,padx=10,pady=10)
+    res3_frame = tk.Frame(com)
+    res3_frame.grid(column=3,row=1,padx=10)
+    diff = obj_function_distance(midpoints)-obj_function_distance(gb)
+    res3_label = tk.Label(res3_frame, text="Pure Djikstra: \t\t"+"{:.2f}".format(obj_function_distance(midpoints))+" units\nParticle Swarm Optimization: \t"+"{:.2f}".format(obj_function_distance(gb))+" units\n\nDistance decreased: \t"+"{:.2f}".format(diff)+" units", font=("Helvetica", 16),justify='left')
+    res3_label.pack(pady=10,expand=True,fill='both')
+    res4_label = tk.Label(res3_frame,text= "{:.2f}% REDUCTION".format(diff/obj_function_distance(midpoints)*100),font= ("Unispace",20),fg="green")
+    res4_label.pack(expand=True,fill='both')
 
 def simulate():
     initialize_inputs()
     triangulate()
     dijkstra()
     optimize()
-    switch_off(simulate_button)
     switch_on(triangulation_button)
     switch_on(dijkstra_button)
     switch_on(optimization_button)
@@ -606,13 +566,20 @@ def set_add_obstacle():
     reset_button_colors()
     obstacle_button.config(bg='lightblue', fg='black')  # Highlight the obstacle button
 
-def draw_obstacle():
-    global obstacle_points
-    for i in range(len(obstacle_points)):
-        x1, y1 = obstacle_points[i]
-        x2, y2 = obstacle_points[(i+1) % len(obstacle_points)]
-        canvas.create_line(x1, y1, x2, y2, fill="orange")
-    obstacle_points = []
+# def set_finalize_obstacle():
+#     global current_mode, obstacle_points
+#     current_mode = "obstacle"
+#     obstacle_points = []
+#     reset_button_colors()
+#     finalize_button.config(bg='lightblue', fg='black')  
+
+# def draw_obstacle():
+#     global obstacle_points
+#     for i in range(len(obstacle_points)):
+#         x1, y1 = obstacle_points[i]
+#         x2, y2 = obstacle_points[(i+1) % len(obstacle_points)]
+#         canvas.create_line(x1, y1, x2, y2, fill="orange")
+#     obstacle_points = []
 
 # Function to show tooltip on hover
 def show_tooltip(event):
@@ -639,34 +606,34 @@ def hide_tooltip():
 
 def draw_grid():
     global initial_map_size
-    for i in range(0, initial_map_size, 50):  # Draw grid lines every 50 units
+    for i in range(0, initial_map_size, 20):  # Draw grid lines every 20 units
         canvas.create_line(i, 0, i, initial_map_size, fill="lightgrey", dash=(2, 2))
         canvas.create_line(0, i, initial_map_size, i, fill="lightgrey", dash=(2, 2))
 
-def intro():
-    intro = tk.Toplevel()
-    intro.iconbitmap("PSO_Logo2.ico")
-    intro.title("Beginner's guide")
-    intro_frame = tk.Frame(intro,padx=10,pady=10)
-    intro_frame.pack()
-    intro_label = tk.Label(intro_frame,text= "Particle Swarm Optimization Simulator", font = ("Unispace",16,"bold italic"),padx=10,pady=10)
-    intro_label.pack(pady=10)
-    message = """   A particle swarm optimization simulator that takes in a set of coordinates for the robots,\n   end points and obstacle points.\n\n    The following constraints are implemented for best performance:\n\n\n
-                - Obstacle boundaries are assumed to be extended 
-                  beforehand by the size of the robot to ensure seamless
-                  movement of robot
-                - Obstacles are set as pentagons for simplicity\n
-                - Max robots are 3\n
-                - Max end point is 1\n"""
-    para_label = tk.Label(intro,text=message,font=("Arial Narrow",16),justify='left')
-    para_label.pack(pady=10 ,padx=10)
+# def intro():
+#     intro = tk.Toplevel()
+#     intro.iconbitmap("PSO_Logo2.ico")
+#     intro.title("Beginner's guide")
+#     intro_frame = tk.Frame(intro,padx=10,pady=10)
+#     intro_frame.pack()
+#     intro_label = tk.Label(intro_frame,text= "Particle Swarm Optimization Simulator", font = ("Unispace",16,"bold italic"),padx=10,pady=10)
+#     intro_label.pack(pady=10)
+#     message = """   A particle swarm optimization simulator that takes in a set of coordinates for the robots,\n   end points and obstacle points.\n\n    The following constraints are implemented for best performance:\n\n\n
+#                 - Obstacle boundaries are assumed to be extended 
+#                   beforehand by the size of the robot to ensure seamless
+#                   movement of robot
+#                 - Obstacles are set as pentagons for simplicity\n
+#                 - Max robots are 3\n
+#                 - Max end point is 1\n"""
+#     para_label = tk.Label(intro,text=message,font=("Arial Narrow",16),justify='left')
+#     para_label.pack(pady=10 ,padx=10)
 
 
 root = tk.Tk()
 root.title("Particle Swarm Optimization Simulator")
 root.iconbitmap("PSO_Logo2.ico")
 
-intro()
+# intro()
 
 # Create two main frames: one for settings, one for simulation
 settings_frame = tk.Frame(root, bd=2, relief=tk.RIDGE)
@@ -688,6 +655,7 @@ btn_bg = 'light grey'
 btn_fg = 'black'
 
 # Adding new disabled buttons at the top of the settings frame
+
 triangulation_button = tk.Button(settings_frame, text="TRIANGULATION", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg, command=triangulation_window)
 triangulation_button.pack(pady=5,padx=5,fill='x')
 
@@ -716,7 +684,6 @@ def update_map_size(value):
     map_size_label.config(text=f"Map Size: {rounded_value}x{rounded_value}")
     initial_map_size = rounded_value
     canvas.config(width=initial_map_size, height=initial_map_size)
-    canvas.update()
     draw_grid()  # Redraw the grid when the map size is updated
 
 # Create buttons
@@ -733,9 +700,14 @@ end_button.pack(pady=5,padx=5,fill='x')
 obstacle_button = tk.Button(button_frame, text="ADD OBSTACLE", command=set_add_obstacle, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
 obstacle_button.pack(pady=5,padx=5,fill='x')
 
+finalize_button = tk.Button(button_frame, text="FINALIZE OBSTACLE", command=finalize_obstacle, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
+finalize_button.pack(pady=5,padx=5,fill='x')
+
 # Label to display coordinates
 coord_label = tk.Label(button_frame, text="", font=tkFont.Font(family="Helvetica", size=10))
 coord_label.pack(pady=5)
+
+
 
 def clear_canvas():
     global obstacle_points,current_mode,end_point,robots,clear_button
@@ -777,13 +749,14 @@ def on_canvas_click(event):
     # Set the color based on the current mode
     color = "black"
     if current_mode == "robot":
-        if (len(robots)==3):
-            coord_label.config(text="A maximum of 3 robots can be placed")
+        if (len(robots)==1):
+            coord_label.config(text="A maximum of 1 robot can be placed")
             return
         else:
             color = "blue"
             robots.append([x,initial_map_size-y])
             coord_label.config(text=str(current_mode).capitalize()+" "+str(len(robots))+" has been placed at "+coord_text+" !")
+            switch_off(robot_button)
     elif current_mode == "end":
         if end_point==None:
             color = "red"
@@ -798,10 +771,12 @@ def on_canvas_click(event):
         obstacle_points.append([x, y])
     # Update coordinate label
         coord_label.config(text=str(current_mode).capitalize()+" point has been placed at "+coord_text+" !")
-        if len(obstacle_points)==5:
-            OBSTACLES_XY.append(np.array([[obstacle_points[0][0],initial_map_size- obstacle_points[0][1]],[obstacle_points[1][0],initial_map_size- obstacle_points[1][1]],[obstacle_points[2][0],initial_map_size- obstacle_points[2][1]],
-                                          [obstacle_points[3][0],initial_map_size- obstacle_points[3][1]],[obstacle_points[4][0],initial_map_size- obstacle_points[4][1]]]))
-            draw_obstacle()
+        # finalize_button()
+        # draw_obstacle()
+        # # if len(obstacle_points)==5:
+        #     OBSTACLES_XY.append(np.array([[obstacle_points[0][0],initial_map_size- obstacle_points[0][1]],[obstacle_points[1][0],initial_map_size- obstacle_points[1][1]],[obstacle_points[2][0],initial_map_size- obstacle_points[2][1]],
+        #                                   [obstacle_points[3][0],initial_map_size- obstacle_points[3][1]],[obstacle_points[4][0],initial_map_size- obstacle_points[4][1]]]))
+        #     draw_obstacle()
 
     dot_id = canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline=color)
     dots.append((x, y, radius, coord_text, dot_id, color))
@@ -824,7 +799,7 @@ simulation_label.pack(pady=10)
 
 # Set canvas size to 1000x1000 and create event bindings
 canvas = tk.Canvas(simulation_frame, width=initial_map_size, height=initial_map_size, bg='white')
-canvas.pack( )
+canvas.pack()
 canvas.bind("<Button-1>", on_canvas_click)
 canvas.bind("<Motion>", show_tooltip)
 canvas.bind("<Leave>", lambda e: hide_tooltip())
@@ -836,7 +811,7 @@ draw_grid()
 # Create a slider
 slider_label = ttk.Label(root, text="Adjust Map Size:")
 slider_label.pack()
-slider = ttk.Scale(root, from_=10, to=900, orient="horizontal", command=update_map_size)
+slider = ttk.Scale(root, from_=10, to=1000, orient="horizontal", command=update_map_size)
 slider.set(initial_map_size)  # Set initial value
 slider.pack(pady=10)
 
