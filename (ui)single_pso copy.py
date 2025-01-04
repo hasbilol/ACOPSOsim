@@ -32,7 +32,7 @@ def initialization():
 initialization()
 
 # Set initial map size
-initial_map_size = 900
+initial_map_size = 1500
 
 def draw_obstacle():
     global obstacle_points
@@ -391,59 +391,59 @@ def optimization_window():
     res2_label.pack(pady=10)
 
     # Add the SIMULATION button
-    simulation_button = tk.Button(opt_frame, text="SIMULATION", command=simulation_window, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
-    simulation_button.pack(pady=10,padx=10,fill='x')
+    # simulation_button = tk.Button(opt_frame, text="SIMULATION", command=simulation_window, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
+    # simulation_button.pack(pady=10,padx=10,fill='x')
 
 
-def simulation_window():
-    global gbests,co,shortest_path
-    plt.close('all')
-    sim = tk.Toplevel()
-    sim.title("Particle Swarm Optmization Simulation")
-    sim_frame = tk.Frame(sim)
-    sim_frame.pack()
-    gen = tk.Label(sim)
-    gen.pack()
+# def simulation_window():
+#     global gbests,co,shortest_path
+#     plt.close('all')
+#     sim = tk.Toplevel()
+#     sim.title("Particle Swarm Optmization Simulation")
+#     sim_frame = tk.Frame(sim)
+#     sim_frame.pack()
+#     gen = tk.Label(sim)
+#     gen.pack()
 
-    for i in range(len(gbests)):
-        gen['text'] = "Generation " + str(i)
-        gen.update()
-        if i!=0:
-            plt.clf()
-        x_values = [gbests[i][j] for j in range(0, len(gbests[i]), 2)]
-        y_values = [gbests[i][j] for j in range(1, len(gbests[i]), 2)]
+#     for i in range(len(gbests)):
+#         gen['text'] = "Generation " + str(i)
+#         gen.update()
+#         if i!=0:
+#             plt.clf()
+#         x_values = [gbests[i][j] for j in range(0, len(gbests[i]), 2)]
+#         y_values = [gbests[i][j] for j in range(1, len(gbests[i]), 2)]
 
-        # Plot the original points and the generated triangles
-        plt.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
-        plt.plot(POINTS[:, 0], POINTS[:, 1], 'o')
+#         # Plot the original points and the generated triangles
+#         plt.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
+#         plt.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-        # Annotate and plot 'START' in blue
-        plt.plot(START_XY[0], START_XY[1], 'o', color='blue')
-        plt.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
+#         # Annotate and plot 'START' in blue
+#         plt.plot(START_XY[0], START_XY[1], 'o', color='blue')
+#         plt.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
-        # Annotate and plot 'END' in red
-        plt.plot(END_XY[0], END_XY[1], 'o', color='red')
-        plt.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
+#         # Annotate and plot 'END' in red
+#         plt.plot(END_XY[0], END_XY[1], 'o', color='red')
+#         plt.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
-        # Highlight the triangles in the shortest path
-        for triangle in shortest_path:
-            triangle_indices = np.array(triangle)
-            plt.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
+#         # Highlight the triangles in the shortest path
+#         for triangle in shortest_path:
+#             triangle_indices = np.array(triangle)
+#             plt.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
 
-        for triangle in co:
-            co_indices = np.array(triangle)
-            plt.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
+#         for triangle in co:
+#             co_indices = np.array(triangle)
+#             plt.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
 
 
 
-        # Plotting the current generation's best solutions
-        plt.plot(x_values, y_values,'o')
+#         # Plotting the current generation's best solutions
+#         plt.plot(x_values, y_values,'o')
 
-        plt.pause(0.1)  # Adjust the pause time as needed for animation speed
-    plt.draw()
-    plt.show()
+#         plt.pause(0.1)  # Adjust the pause time as needed for animation speed
+#     plt.draw()
+#     plt.show()
 
-    display_graph(plt,sim_frame)
+#     display_graph(plt,sim_frame)
 
 # def comparison_window():
     # global midpoints,gb,POINTS,START_XY,END_XY,shortest_path,co
@@ -630,8 +630,8 @@ def draw_grid():
 
 
 root = tk.Tk()
-root.title("Particle Swarm Optimization Simulator")
-root.iconbitmap("PSO_Logo2.ico")
+root.title("ACO-PSO Hybrid Simulator")
+# root.iconbitmap("PSO_Logo2.ico")
 
 # intro()
 
@@ -647,8 +647,8 @@ settings_label = tk.Label(settings_frame, text="Simulation Settings", font=("Uni
 settings_label.pack(pady=10)
 
 # Styling
-btn_font = tkFont.Font(family="Unispace", size=12)
-btn_padx = 20
+btn_font = tkFont.Font(family="Lexend", size=10)
+btn_padx = 10
 btn_pady = 10
 btn_relief = tk.FLAT
 btn_bg = 'light grey'
@@ -692,20 +692,25 @@ button_frame.pack(side=tk.LEFT, padx=10)
 
 
 robot_button = tk.Button(button_frame, text="ADD ROBOT", command=set_robot, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
-robot_button.pack(pady=5,padx=5,fill='x')
+# robot_button.pack(pady=5,padx=5,fill='x')
 
 end_button = tk.Button(button_frame, text="ADD END POINT", command=set_end_point, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
-end_button.pack(pady=5,padx=5,fill='x')
+# end_button.pack(pady=5,padx=5,fill='x')
 
 obstacle_button = tk.Button(button_frame, text="ADD OBSTACLE", command=set_add_obstacle, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
-obstacle_button.pack(pady=5,padx=5,fill='x')
+# obstacle_button.pack(pady=5,padx=5,fill='x')
 
 finalize_button = tk.Button(button_frame, text="FINALIZE OBSTACLE", command=finalize_obstacle, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
-finalize_button.pack(pady=5,padx=5,fill='x')
+# finalize_button.pack(pady=5,padx=5,fill='x')
+
+robot_button.grid(row=0, column=0, padx=5, pady=5)
+end_button.grid(row=0, column=1, padx=5, pady=5)
+obstacle_button.grid(row=0, column=2, padx=5, pady=5)
+finalize_button.grid(row=0, column=3, padx=5, pady=5)
 
 # Label to display coordinates
 coord_label = tk.Label(button_frame, text="", font=tkFont.Font(family="Helvetica", size=10))
-coord_label.pack(pady=5)
+# coord_label.pack(pady=5)
 
 
 
@@ -730,11 +735,11 @@ def clear_canvas():
     initialization()
 
 clear_button = tk.Button(button_frame, text="CLEAR", command=clear_canvas,state='disabled', font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg='grey', fg='white')
-clear_button.pack(pady=5)
+# clear_button.pack(pady=5)
 
 # Add the SIMULATE button
 simulate_button = tk.Button(button_frame, text="SIMULATE", command=simulate,state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
-simulate_button.pack(pady=10,padx=10,fill='x')
+# simulate_button.pack(pady=10,padx=10,fill='x')
 
 def on_canvas_click(event):
     global dots,robots,end_point,initial_map_size
@@ -808,11 +813,11 @@ canvas.bind("<Leave>", lambda e: hide_tooltip())
 # Draw grid lines
 draw_grid()
 
-# Create a slider
-slider_label = ttk.Label(root, text="Adjust Map Size:")
-slider_label.pack()
-slider = ttk.Scale(root, from_=10, to=1000, orient="horizontal", command=update_map_size)
-slider.set(initial_map_size)  # Set initial value
-slider.pack(pady=10)
+# # Create a slider
+# slider_label = ttk.Label(settings_frame, text="Adjust Map Size:")
+# slider_label.pack()
+# slider = ttk.Scale(settings_frame, from_=10, to=1000, orient="horizontal", command=update_map_size)
+# slider.set(initial_map_size)  # Set initial value
+# slider.pack(pady=10)
 
 root.mainloop()
