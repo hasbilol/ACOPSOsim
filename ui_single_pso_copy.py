@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import font as tkFont
 from tkinter import ttk
+from tkinter import PhotoImage
 import numpy as np
 from scipy.spatial import Delaunay,ConvexHull
 import matplotlib.pyplot as plt
@@ -38,9 +39,9 @@ def draw_obstacle():
     global obstacle_points
     num_points = len(obstacle_points)
 
-    # if num_points < 3:
-    #     coord_label.config(text="At least 3 points are needed to form a polygon.")
-    #     return
+    if num_points < 3:
+        coord_label.config(text="At least 3 points are needed to form a polygon.")
+        return
 
     # Draw lines connecting the points to form a closed polygon
     for i in range(num_points):
@@ -56,6 +57,8 @@ def finalize_obstacle():
     """Finalize the current obstacle when the user clicks a button."""
     draw_obstacle()
     coord_label.config(text="Polygon obstacle finalized. You can start a new obstacle.")    
+    return obstacle_points
+
 
 
 def get_map_dimensions():
@@ -73,13 +76,13 @@ def reset_button_colors():
         btn.config(bg='light grey', fg='black', activebackground='grey', activeforeground='white')
 
 # Calculate the midpoints of the edges of a triangle
-# def calculate_edge_midpoints(triangle):
-#     edge_midpoints = []
-#     for i in range(3):
-#         j = (i + 1) % 3
-#         midpoint = (triangle[i] + triangle[j]) / 2
-#         edge_midpoints.append(midpoint)
-#     return edge_midpoints
+def calculate_edge_midpoints(triangle):
+    edge_midpoints = []
+    for i in range(3):
+        j = (i + 1) % 3
+        midpoint = (triangle[i] + triangle[j]) / 2
+        edge_midpoints.append(midpoint)
+    return edge_midpoints
 
 
 def initialize_inputs():
@@ -177,32 +180,32 @@ def triangulation_window():
     display_graph(fig,tri_frame)
 
 
-# # def dijkstra():
-#     global shortest_path,G,cf,triangulation,START_XY,END_XY
-#     start_tri = (sorted(triangulation.simplices[triangulation.find_simplex(START_XY)]))
-#     goal_tri = (sorted(triangulation.simplices[triangulation.find_simplex(END_XY)]))
+def dijkstra():
+    global shortest_path,G,cf,triangulation,START_XY,END_XY
+    start_tri = (sorted(triangulation.simplices[triangulation.find_simplex(START_XY)]))
+    goal_tri = (sorted(triangulation.simplices[triangulation.find_simplex(END_XY)]))
 
 
-#     # Add nodes (triangles) to the graph
-#     for simplex in cf:
-#         triangle_nodes = tuple(sorted(simplex))  # Sort the vertices to create a unique identifier
-#         G.add_node(triangle_nodes)
+    # Add nodes (triangles) to the graph
+    for simplex in cf:
+        triangle_nodes = tuple(sorted(simplex))  # Sort the vertices to create a unique identifier
+        G.add_node(triangle_nodes)
 
-#     # Calculate the distance (e.g., Euclidean distance) between triangles and add edges
-#     for node1 in G.nodes:
-#         for node2 in G.nodes:
-#             if node1 != node2 and len(set(node1).intersection(node2)) == 2:
-#                 triangle1 = triangulation.points[list(node1)]
-#                 triangle2 = triangulation.points[list(node2)]
-#                 distance = np.linalg.norm(triangle1.mean(axis=0) - triangle2.mean(axis=0))
-#                 G.add_edge(node1, node2, weight=distance)
+    # Calculate the distance (e.g., Euclidean distance) between triangles and add edges
+    for node1 in G.nodes:
+        for node2 in G.nodes:
+            if node1 != node2 and len(set(node1).intersection(node2)) == 2:
+                triangle1 = triangulation.points[list(node1)]
+                triangle2 = triangulation.points[list(node2)]
+                distance = np.linalg.norm(triangle1.mean(axis=0) - triangle2.mean(axis=0))
+                G.add_edge(node1, node2, weight=distance)
 
-#     # Perform Dijkstra's algorithm to find the shortest path between two triangles
-#     # triangle input is backwards of output from simplexes
-#     start_node = (start_tri[0], start_tri[1], start_tri[2])  # Replace with your desired starting triangle
-#     end_node = (goal_tri[0], goal_tri[1], goal_tri[2])  # Replace with your desired ending triangle
+    # Perform Dijkstra's algorithm to find the shortest path between two triangles
+    # triangle input is backwards of output from simplexes
+    start_node = (start_tri[0], start_tri[1], start_tri[2])  # Replace with your desired starting triangle
+    end_node = (goal_tri[0], goal_tri[1], goal_tri[2])  # Replace with your desired ending triangle
 
-#     shortest_path = nx.shortest_path(G, source=start_node, target=end_node, weight='weight')
+    shortest_path = nx.shortest_path(G, source=start_node, target=end_node, weight='weight')
 
 # Define objective function
 def distance(point1, point2):
@@ -218,7 +221,7 @@ def obj_function_distance(particles):
     total_distance += distance((particles[-2], particles[-1]), end)
     return total_distance
 
-# def dijkstra_window():
+def dijkstra_window():
     global G,shortest_path,co,midpoints
     dji = tk.Toplevel()
     dji.title("Dijkstra's Algorithm")
@@ -390,152 +393,154 @@ def optimization_window():
     res2_label = tk.Label(res2_frame, text="Distance: "+"{:.2f}".format(obj_function_distance(gb))+" units", font=("Helvetica", 16))
     res2_label.pack(pady=10)
 
-    # Add the SIMULATION button
-    # simulation_button = tk.Button(opt_frame, text="SIMULATION", command=simulation_window, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
-    # simulation_button.pack(pady=10,padx=10,fill='x')
+   # Add the SIMULATION button
+    simulation_button = tk.Button(opt_frame, text="SIMULATION", command=simulation_window, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
+    simulation_button.pack(pady=10,padx=10,fill='x')
 
 
-# def simulation_window():
-#     global gbests,co,shortest_path
-#     plt.close('all')
-#     sim = tk.Toplevel()
-#     sim.title("Particle Swarm Optmization Simulation")
-#     sim_frame = tk.Frame(sim)
-#     sim_frame.pack()
-#     gen = tk.Label(sim)
-#     gen.pack()
+def simulation_window():
+    global gbests,co,shortest_path
+    plt.close('all')
+    sim = tk.Toplevel()
+    sim.title("Particle Swarm Optmization Simulation")
+    sim_frame = tk.Frame(sim)
+    sim_frame.pack()
+    gen = tk.Label(sim)
+    gen.pack()
 
-#     for i in range(len(gbests)):
-#         gen['text'] = "Generation " + str(i)
-#         gen.update()
-#         if i!=0:
-#             plt.clf()
-#         x_values = [gbests[i][j] for j in range(0, len(gbests[i]), 2)]
-#         y_values = [gbests[i][j] for j in range(1, len(gbests[i]), 2)]
+    for i in range(len(gbests)):
+        gen['text'] = "Generation " + str(i)
+        gen.update()
+        if i!=0:
+            plt.clf()
+        x_values = [gbests[i][j] for j in range(0, len(gbests[i]), 2)]
+        y_values = [gbests[i][j] for j in range(1, len(gbests[i]), 2)]
 
-#         # Plot the original points and the generated triangles
-#         plt.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
-#         plt.plot(POINTS[:, 0], POINTS[:, 1], 'o')
+        # Plot the original points and the generated triangles
+        plt.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
+        plt.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-#         # Annotate and plot 'START' in blue
-#         plt.plot(START_XY[0], START_XY[1], 'o', color='blue')
-#         plt.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
+        # Annotate and plot 'START' in blue
+        plt.plot(START_XY[0], START_XY[1], 'o', color='blue')
+        plt.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
-#         # Annotate and plot 'END' in red
-#         plt.plot(END_XY[0], END_XY[1], 'o', color='red')
-#         plt.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
+        # Annotate and plot 'END' in red
+        plt.plot(END_XY[0], END_XY[1], 'o', color='red')
+        plt.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
-#         # Highlight the triangles in the shortest path
-#         for triangle in shortest_path:
-#             triangle_indices = np.array(triangle)
-#             plt.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
+        # Highlight the triangles in the shortest path
+        for triangle in shortest_path:
+            triangle_indices = np.array(triangle)
+            plt.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
 
-#         for triangle in co:
-#             co_indices = np.array(triangle)
-#             plt.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
+        for triangle in co:
+            co_indices = np.array(triangle)
+            plt.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
 
 
 
-#         # Plotting the current generation's best solutions
-#         plt.plot(x_values, y_values,'o')
+        # Plotting the current generation's best solutions
+        plt.plot(x_values, y_values,'o')
 
-#         plt.pause(0.1)  # Adjust the pause time as needed for animation speed
-#     plt.draw()
-#     plt.show()
+        plt.pause(0.1)  # Adjust the pause time as needed for animation speed
+    plt.draw()
+    plt.show()
 
-#     display_graph(plt,sim_frame)
+    display_graph(plt,sim_frame)
 
-# def comparison_window():
-    # global midpoints,gb,POINTS,START_XY,END_XY,shortest_path,co
-    # com = tk.Toplevel()
-    # com.title("Comparison of Pure Dijkstra's Algorithm vs Particle Swarm Optimization")
-    # com_frame = tk.Frame(com)
-    # com_frame.grid(column=2,row=1,padx=10)
-    # com_label = tk.Label(com, text="Comparison of Pure Dijkstra's Algorithm vs Particle Swarm Optimization", font=("Unispace", 16))
-    # com_label.grid(column=1,row=0,columnspan=2,pady=10)
-    # # Plot the original points and the generated triangles
-    # fig, ax = plt.subplots(figsize=(10,10))
-    # ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
-    # ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
+def comparison_window():
+    global midpoints,gb,POINTS,START_XY,END_XY,shortest_path,co
+    com = tk.Toplevel()
+    com.title("Comparison of Pure Dijkstra's Algorithm vs Particle Swarm Optimization")
+    com_frame = tk.Frame(com)
+    com_frame.grid(column=2,row=1,padx=10)
+    com_label = tk.Label(com, text="Comparison of Pure Dijkstra's Algorithm vs Particle Swarm Optimization", font=("Unispace", 16))
+    com_label.grid(column=1,row=0,columnspan=2,pady=10)
+    # Plot the original points and the generated triangles
+    fig, ax = plt.subplots(figsize=(10,10))
+    ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
+    ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-    # if len(midpoints)==0:
-    #         # Calculate midpoints for all triangles
-    #     triangle_midpoints = {}
-    #     for triangle in G.nodes:
-    #         triangle_indices = np.array(triangle)
-    #         triangle_points = triangulation.points[triangle_indices]
-    #         edge_midpoints = calculate_edge_midpoints(triangle_points)
-    #         triangle_midpoints[triangle] = edge_midpoints
+    if len(midpoints)==0:
+            # Calculate midpoints for all triangles
+        triangle_midpoints = {}
+        for triangle in G.nodes:
+            triangle_indices = np.array(triangle)
+            triangle_points = triangulation.points[triangle_indices]
+            edge_midpoints = calculate_edge_midpoints(triangle_points)
+            triangle_midpoints[triangle] = edge_midpoints
 
-    #     midpoints = []
+        midpoints = []
 
-    #     # Draw lines through midpoints
-    #     for i in range(len(shortest_path) - 1):
-    #         current_triangle = shortest_path[i]
-    #         next_triangle = shortest_path[i + 1]
-    #         for element in triangle_midpoints[current_triangle]:
-    #             if any(np.array_equal(element,next_elem)for next_elem in triangle_midpoints[next_triangle]):
-    #                 next_midpoints = element
-    #         midpoints.append(next_midpoints)
+        # Draw lines through midpoints
+        for i in range(len(shortest_path) - 1):
+            current_triangle = shortest_path[i]
+            next_triangle = shortest_path[i + 1]
+            for element in triangle_midpoints[current_triangle]:
+                if any(np.array_equal(element,next_elem)for next_elem in triangle_midpoints[next_triangle]):
+                    next_midpoints = element
+            midpoints.append(next_midpoints)
 
-    # # Annotate and plot 'START' in blue
-    # ax.plot(START_XY[0], START_XY[1], 'o', color='blue')
-    # ax.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
+    # Annotate and plot 'START' in blue
+    ax.plot(START_XY[0], START_XY[1], 'o', color='blue')
+    ax.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
-    # # Annotate and plot 'END' in red
-    # ax.plot(END_XY[0], END_XY[1], 'o', color='red')
-    # ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
+    # Annotate and plot 'END' in red
+    ax.plot(END_XY[0], END_XY[1], 'o', color='red')
+    ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
-    # # Draw lines connecting midpoints (Pure Dijkstra)
-    # for i in range(len(midpoints)-1):
-    #     ax.plot([midpoints[i][0], midpoints[i+1][0]],
-    #             [midpoints[i][1], midpoints[i+1][1]],
-    #             color='red', linestyle='--', label='Pure Dijkstra' if i == 0 else "")
+    # Draw lines connecting midpoints (Pure Dijkstra)
+    for i in range(len(midpoints)-1):
+        ax.plot([midpoints[i][0], midpoints[i+1][0]],
+                [midpoints[i][1], midpoints[i+1][1]],
+                color='red', linestyle='--', label='Pure Dijkstra' if i == 0 else "")
         
-    # ax.plot([START_XY[0], midpoints[0][0]], [START_XY[1], midpoints[0][1]], color='red', linestyle='--')
-    # ax.plot([END_XY[0], midpoints[-1][0]], [END_XY[1], midpoints[-1][1]], color='red', linestyle='--')
+    ax.plot([START_XY[0], midpoints[0][0]], [START_XY[1], midpoints[0][1]], color='red', linestyle='--')
+    ax.plot([END_XY[0], midpoints[-1][0]], [END_XY[1], midpoints[-1][1]], color='red', linestyle='--')
 
-    # # Highlight the triangles in the shortest path
-    # for triangle in shortest_path:
-    #     triangle_indices = np.array(triangle)
-    #     ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
+    # Highlight the triangles in the shortest path
+    for triangle in shortest_path:
+        triangle_indices = np.array(triangle)
+        ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
 
-    # for triangle in co:
-    #     co_indices = np.array(triangle)
-    #     ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
+    for triangle in co:
+        co_indices = np.array(triangle)
+        ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
 
-    # # Draw lines connecting global best particles (Dijkstra + PSO)
-    # for i in range(0, len(gb)-2, 2):
-    #     ax.plot([gb[i], gb[i+2]],
-    #             [gb[i+1], gb[i+3]],
-    #             color='blue', linestyle='-', label='Dijkstra + PSO' if i == 0 else "")
+    # Draw lines connecting global best particles (Dijkstra + PSO)
+    for i in range(0, len(gb)-2, 2):
+        ax.plot([gb[i], gb[i+2]],
+                [gb[i+1], gb[i+3]],
+                color='blue', linestyle='-', label='Dijkstra + PSO' if i == 0 else "")
         
-    # ax.plot([START_XY[0], gb[0]], [START_XY[1], gb[1]], color='blue', linestyle='-')
-    # ax.plot([END_XY[0], gb[-2]], [END_XY[1], gb[-1]], color='blue', linestyle='-')
+    ax.plot([START_XY[0], gb[0]], [START_XY[1], gb[1]], color='blue', linestyle='-')
+    ax.plot([END_XY[0], gb[-2]], [END_XY[1], gb[-1]], color='blue', linestyle='-')
 
-    # # Adding the legend outside the plot to the right
-    # ax.legend(loc='center right', bbox_to_anchor=(1, 1))
+    # Adding the legend outside the plot to the right
+    ax.legend(loc='center right', bbox_to_anchor=(1, 1))
 
 
-    # display_graph(fig,com_frame)
+    display_graph(fig,com_frame)
 
-    # res3_frame = tk.Frame(com)
-    # res3_frame.grid(column=3,row=1,padx=10)
-    # diff = obj_function_distance(midpoints)-obj_function_distance(gb)
-    # res3_label = tk.Label(res3_frame, text="Pure Djikstra: \t\t"+"{:.2f}".format(obj_function_distance(midpoints))+" units\nParticle Swarm Optimization: \t"+"{:.2f}".format(obj_function_distance(gb))+" units\n\nDistance decreased: \t"+"{:.2f}".format(diff)+" units", font=("Helvetica", 16),justify='left')
-    # res3_label.pack(pady=10,expand=True,fill='both')
-    # res4_label = tk.Label(res3_frame,text= "{:.2f}% REDUCTION".format(diff/obj_function_distance(midpoints)*100),font= ("Unispace",20),fg="green")
-    # res4_label.pack(expand=True,fill='both')
+    res3_frame = tk.Frame(com)
+    res3_frame.grid(column=3,row=1,padx=10)
+    diff = obj_function_distance(midpoints)-obj_function_distance(gb)
+    res3_label = tk.Label(res3_frame, text="Pure Djikstra: \t\t"+"{:.2f}".format(obj_function_distance(midpoints))+" units\nParticle Swarm Optimization: \t"+"{:.2f}".format(obj_function_distance(gb))+" units\n\nDistance decreased: \t"+"{:.2f}".format(diff)+" units", font=("Helvetica", 16),justify='left')
+    res3_label.pack(pady=10,expand=True,fill='both')
+    res4_label = tk.Label(res3_frame,text= "{:.2f}% REDUCTION".format(diff/obj_function_distance(midpoints)*100),font= ("Unispace",20),fg="green")
+    res4_label.pack(expand=True,fill='both')
 
 def simulate():
     initialize_inputs()
     triangulate()
-    # dijkstra()
+    dijkstra()
     optimize()
-    # switch_on(triangulation_button)
-    # switch_on(dijkstra_button)
-    # switch_on(optimization_button)
-    # switch_on(comparison_button)
+    switch_off(obstacle_button)
+    switch_off(finalize_button)
+    switch_on(triangulation_button)
+    switch_on(dijkstra_button)
+    switch_on(optimization_button)
+    switch_on(comparison_button)
     coord_label.config(text=" Simulation has been created ! ")
 
 def switch_on(btn):
@@ -610,23 +615,23 @@ def draw_grid():
         canvas.create_line(i, 0, i, initial_map_size, fill="lightgrey", dash=(2, 2))
         canvas.create_line(0, i, initial_map_size, i, fill="lightgrey", dash=(2, 2))
 
-# def intro():
-#     intro = tk.Toplevel()
-#     intro.iconbitmap("PSO_Logo2.ico")
-#     intro.title("Beginner's guide")
-#     intro_frame = tk.Frame(intro,padx=10,pady=10)
-#     intro_frame.pack()
-#     intro_label = tk.Label(intro_frame,text= "Particle Swarm Optimization Simulator", font = ("Unispace",16,"bold italic"),padx=10,pady=10)
-#     intro_label.pack(pady=10)
-#     message = """   A particle swarm optimization simulator that takes in a set of coordinates for the robots,\n   end points and obstacle points.\n\n    The following constraints are implemented for best performance:\n\n\n
-#                 - Obstacle boundaries are assumed to be extended 
-#                   beforehand by the size of the robot to ensure seamless
-#                   movement of robot
-#                 - Obstacles are set as pentagons for simplicity\n
-#                 - Max robots are 3\n
-#                 - Max end point is 1\n"""
-#     para_label = tk.Label(intro,text=message,font=("Arial Narrow",16),justify='left')
-#     para_label.pack(pady=10 ,padx=10)
+def intro():
+    intro = tk.Toplevel()
+    intro.iconbitmap("PSO_Logo2.ico")
+    intro.title("Beginner's guide")
+    intro_frame = tk.Frame(intro,padx=10,pady=10)
+    intro_frame.pack()
+    intro_label = tk.Label(intro_frame,text= "Particle Swarm Optimization Simulator", font = ("Unispace",16,"bold italic"),padx=10,pady=10)
+    intro_label.pack(pady=10)
+    message = """   A particle swarm optimization simulator that takes in a set of coordinates for the robots,\n   end points and obstacle points.\n\n    The following constraints are implemented for best performance:\n\n\n
+                - Obstacle boundaries are assumed to be extended 
+                  beforehand by the size of the robot to ensure seamless
+                  movement of robot
+                - Obstacles are set as pentagons for simplicity\n
+                - Max robots are 3\n
+                - Max end point is 1\n"""
+    para_label = tk.Label(intro,text=message,font=("Arial Narrow",16),justify='left')
+    para_label.pack(pady=10 ,padx=10)
 
 
 root = tk.Tk()
@@ -634,6 +639,10 @@ root.title("ACO-PSO Hybrid Simulator")
 # root.iconbitmap("PSO_Logo2.ico")
 
 # intro()
+
+# Create a new frame to hold all sections
+main_frame = tk.Frame(root)
+main_frame.pack(fill="both", expand=True)
 
 # Create two main frames: one for settings, one for simulation
 settings_frame = tk.Frame(root, bd=2, relief=tk.RIDGE)
@@ -654,19 +663,7 @@ btn_relief = tk.FLAT
 btn_bg = 'light grey'
 btn_fg = 'black'
 
-# Adding new disabled buttons at the top of the settings frame
 
-# triangulation_button = tk.Button(settings_frame, text="TRIANGULATION", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg, command=triangulation_window)
-# triangulation_button.pack(pady=5,padx=5,fill='x')
-
-# dijkstra_button = tk.Button(settings_frame, text="DIJKSTRA", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg,command = dijkstra_window)
-# dijkstra_button.pack(pady=5,padx=5,fill='x')
-
-# optimization_button = tk.Button(settings_frame, text="OPTIMIZATION", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg,command= optimization_window)
-# optimization_button.pack(pady=5,padx=5,fill='x')
-
-# comparison_button = tk.Button(settings_frame, text="COMPARISON", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg,command=comparison_window)
-# comparison_button.pack(pady=5,padx=5,fill='x')
 
 current_mode = "normal"
 obstacle_points = []
@@ -690,6 +687,19 @@ def update_map_size(value):
 button_frame = tk.Frame(settings_frame)
 button_frame.pack(side=tk.LEFT, padx=10)
 
+# Adding new disabled buttons at the top of the settings frame
+
+triangulation_button = tk.Button(button_frame, text="TRIANGULATION", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg, command=triangulation_window)
+# triangulation_button.pack(pady=5,padx=5,fill='x')
+
+dijkstra_button = tk.Button(button_frame, text="DIJKSTRA", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg,command = dijkstra_window)
+# dijkstra_button.pack(pady=5,padx=5,fill='x')
+
+optimization_button = tk.Button(button_frame, text="OPTIMIZATION", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg,command= optimization_window)
+# optimization_button.pack(pady=5,padx=5,fill='x')
+
+comparison_button = tk.Button(button_frame, text="COMPARISON", state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg,command=comparison_window)
+# comparison_button.pack(pady=5,padx=5,fill='x')
 
 robot_button = tk.Button(button_frame, text="ADD ROBOT", command=set_robot, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
 # robot_button.pack(pady=5,padx=5,fill='x')
@@ -703,14 +713,20 @@ obstacle_button = tk.Button(button_frame, text="ADD OBSTACLE", command=set_add_o
 finalize_button = tk.Button(button_frame, text="FINALIZE OBSTACLE", command=finalize_obstacle, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
 # finalize_button.pack(pady=5,padx=5,fill='x')
 
-robot_button.grid(row=0, column=0, padx=5, pady=5)
-end_button.grid(row=0, column=1, padx=5, pady=5)
-obstacle_button.grid(row=0, column=2, padx=5, pady=5)
-finalize_button.grid(row=0, column=3, padx=5, pady=5)
+robot_button.grid(row=1, column=0, padx=5, pady=5)
+end_button.grid(row=1, column=1, padx=5, pady=5)
+obstacle_button.grid(row=1, column=2, padx=5, pady=5)
+finalize_button.grid(row=1, column=3, padx=5, pady=5)
+
+triangulation_button.grid(row=1, column=5, padx=5, pady=5)
+dijkstra_button.grid(row=1, column=6, padx=5, pady=5)
+optimization_button.grid(row=1, column=7, padx=5, pady=5)
+comparison_button.grid(row=1, column=8, padx=5, pady=5)
+
 
 # Label to display coordinates
-coord_label = tk.Label(button_frame, text="", font=tkFont.Font(family="Helvetica", size=10))
-# coord_label.pack(pady=5)
+coord_label = tk.Label(main_frame, text="", font=tkFont.Font(family="Helvetica", size=10))
+coord_label.grid(row=0, column=1, padx=1, pady=5)
 
 
 
@@ -728,10 +744,10 @@ def clear_canvas():
     switch_off(clear_button)
     switch_on(robot_button)
     switch_on(end_button)
-    # switch_off(triangulation_button)
-    # switch_off(dijkstra_button)
-    # switch_off(optimization_button)
-    # switch_off(comparison_button)
+    switch_off(triangulation_button)
+    switch_off(dijkstra_button)
+    switch_off(optimization_button)
+    switch_off(comparison_button)
     initialization()
 
 clear_button = tk.Button(button_frame, text="CLEAR", command=clear_canvas,state='disabled', font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg='grey', fg='white')
@@ -740,6 +756,7 @@ clear_button = tk.Button(button_frame, text="CLEAR", command=clear_canvas,state=
 # Add the SIMULATE button
 simulate_button = tk.Button(button_frame, text="SIMULATE", command=simulate,state="disabled", font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
 # simulate_button.pack(pady=10,padx=10,fill='x')
+simulate_button.grid(row=1, column=4, padx=5, pady=5)
 
 def on_canvas_click(event):
     global dots,robots,end_point,initial_map_size
@@ -761,6 +778,7 @@ def on_canvas_click(event):
             color = "blue"
             robots.append([x,initial_map_size-y])
             coord_label.config(text=str(current_mode).capitalize()+" "+str(len(robots))+" has been placed at "+coord_text+" !")
+            # canvas.create_image(x, y, image=robot_icon, anchor="center")
             switch_off(robot_button)
     elif current_mode == "end":
         if end_point==None:
@@ -803,17 +821,22 @@ simulation_label = tk.Label(simulation_frame, text="Map", font=("Unispace", 16))
 simulation_label.pack(pady=10)
 
 # Set canvas size to 1000x1000 and create event bindings
-canvas = tk.Canvas(simulation_frame, width=initial_map_size, height=initial_map_size, bg='black')
+canvas = tk.Canvas(simulation_frame, width=initial_map_size, height=initial_map_size, bg='grey')
 canvas.pack()
 canvas.bind("<Button-1>", on_canvas_click)
 canvas.bind("<Motion>", show_tooltip)
 canvas.bind("<Leave>", lambda e: hide_tooltip())
 
+#Load Icons
+robot_icon = PhotoImage(file="robot.png") 
+# flag_icon = PhotoImage(file="flag_icon.png")    
+
+
 
 # Draw grid lines
 draw_grid()
 
-# # Create a slider
+# Create a slider
 # slider_label = ttk.Label(settings_frame, text="Adjust Map Size:")
 # slider_label.pack()
 # slider = ttk.Scale(settings_frame, from_=10, to=1000, orient="horizontal", command=update_map_size)
