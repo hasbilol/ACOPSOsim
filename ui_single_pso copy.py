@@ -403,28 +403,39 @@ def optimize():
 
 
 def optimization_window():
-    global co,shortest_path,POINTS,triangulation,START_XY,END_XY,gb
+    global co, shortest_path, POINTS, triangulation, START_XY, END_XY, gb
+
     opt = tk.Toplevel()
     opt.title("Hybrid Ant Colony Optimization and Particle Swarm Optimization")
-    opt_frame = tk.Frame(opt)
-    opt_frame.grid(column=1,row=1,padx=10)
-    opt_label = tk.Label(opt, text="Hybrid Ant Colony Optimization and Particle Swarm Optimization", font=("Unispace", 16))
-    opt_label.grid(column=1,row=0,columnspan=2,pady=10)
 
-    # Plot the original points and the generated triangles
-    fig, ax = plt.subplots(figsize=(9,9))
+    # Top-level frame to hold all
+    container = tk.Frame(opt)
+    container.pack(fill=tk.BOTH, expand=True)
+
+    # Frame for the plot (top)
+    plot_frame = tk.Frame(container)
+    plot_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    # Frame for route info and buttons (bottom)
+    info_frame = tk.Frame(container)
+    info_frame.pack(side=tk.BOTTOM, fill=tk.X)
+
+    # Plot title
+    opt_label = tk.Label(plot_frame, text="Hybrid Ant Colony Optimization and Particle Swarm Optimization", font=("Unispace", 16))
+    opt_label.pack(pady=10)
+
+    # Make figure rectangular
+    fig, ax = plt.subplots(figsize=(12, 6))
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-    # Annotate and plot 'START' in blue
+    # Start and End points
     ax.plot(START_XY[0], START_XY[1], 'o', color='blue')
     ax.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
-
-    # Annotate and plot 'END' in red
     ax.plot(END_XY[0], END_XY[1], 'o', color='red')
     ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
-    # Draw lines connecting global best particles
+    # Path lines
     for i in range(0, len(aco_pso_result) - 2, 2):
         ax.plot([aco_pso_result[i], aco_pso_result[i + 2]],
                 [aco_pso_result[i + 1], aco_pso_result[i + 3]],
@@ -432,26 +443,27 @@ def optimization_window():
     ax.plot([START_XY[0], aco_pso_result[0]], [START_XY[1], aco_pso_result[1]], color='green', linestyle='-')
     ax.plot([END_XY[0], aco_pso_result[-2]], [END_XY[1], aco_pso_result[-1]], color='green', linestyle='-')
 
-
-    # Highlight the triangles in the shortest path
+    # Highlight triangles
     for triangle in shortest_path:
         triangle_indices = np.array(triangle)
         ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
-
     for triangle in co:
         co_indices = np.array(triangle)
         ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
 
-    display_graph(fig,opt_frame)
+    # Display graph in the top frame
+    display_graph(fig, plot_frame)
 
-    res2_frame = tk.Frame(opt)
-    res2_frame.grid(column=2,row=1,padx=10)
-    res2_label = tk.Label(res2_frame, text="Distance: "+"{:.2f}".format(obj_function_distance(gb))+" units", font=("Helvetica", 16))
+    # Distance label in bottom frame
+    res2_label = tk.Label(info_frame, text="Distance: {:.2f} units".format(obj_function_distance(gb)), font=("Helvetica", 16))
     res2_label.pack(pady=10)
 
-   # Add the SIMULATION button
-    simulation_button = tk.Button(opt_frame, text="SIMULATION", command=simulation_window, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
-    simulation_button.pack(pady=10,padx=10,fill='x')
+    # SIMULATION button
+    simulation_button = tk.Button(info_frame, text="SIMULATION", command=simulation_window,
+                                  font=btn_font, padx=btn_padx, pady=btn_pady,
+                                  relief=btn_relief, bg=btn_bg, fg=btn_fg)
+    simulation_button.pack(pady=10, padx=10, fill='x')
+
 
 
 
