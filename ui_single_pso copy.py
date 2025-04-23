@@ -5,6 +5,7 @@ from tkinter import PhotoImage
 import numpy as np
 from scipy.spatial import Delaunay,ConvexHull
 import matplotlib.pyplot as plt
+from matplotlib.path import Path
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg,NavigationToolbar2Tk
 import networkx as nx
 
@@ -91,31 +92,29 @@ def calculate_edge_midpoints(triangle):
 
 def initialize_inputs():
     try:
-        global initial_map_size,OBSTACLES_XY,POINTS,OBSTACLES,START_XY,END_XY
+        global initial_map_size, OBSTACLES_XY, POINTS, OBSTACLES, START_XY, END_XY
         MAP_LENGTH = initial_map_size
         MAP_WIDTH = initial_map_size
 
-        # Define the coordinates of the points for the map boundaries
+        # Define only the 4 boundary points
         MAP = np.array([[0.0, 0.0], [0.0, MAP_WIDTH], [MAP_LENGTH, MAP_WIDTH], [MAP_LENGTH, 0.0]])
         START_XY = robots[0] 
         END_XY = end_point
 
-        # Define list of obstacle indices
         OBSTACLES = [None] * len(OBSTACLES_XY)
+        POINTS = np.copy(MAP)  # Start with only boundary points
 
-        hull = ConvexHull(MAP)
-        POINTS = MAP[hull.vertices]
-
-        for obs in OBSTACLES_XY:
-            POINTS = np.append(POINTS, obs, axis=0)
-
-        for i in range(len(OBSTACLES_XY)):
+        for i, obs in enumerate(OBSTACLES_XY):
             OBSTACLES[i] = []
-            for point in OBSTACLES_XY[i]:
-                index = np.where(np.all(POINTS == point, axis=1))
-                if len(index[0]) > 0:
-                    OBSTACLES[i].append(index[0][0])
-
+            for point in obs:
+                # Check if this point already exists in POINTS to avoid duplicates
+                exists = np.where(np.all(POINTS == point, axis=1))[0]
+                if exists.size > 0:
+                    index = exists[0]
+                else:
+                    POINTS = np.vstack([POINTS, point])
+                    index = len(POINTS) - 1
+                OBSTACLES[i].append(index)
 
     except ValueError as e:
         print(f"ValueError: {e}")
@@ -124,29 +123,55 @@ def initialize_inputs():
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
+
+        
+def cache_obstacle_paths():
+    """Convert all obstacles to Path objects once for faster checking."""
+    return [Path(obs) for obs in OBSTACLES_XY]
+        
+def point_in_polygon(point, polygon):
+    x, y = point
+    inside = False
+    n = len(polygon)
+    px, py = zip(*polygon)
+
+    j = n - 1
+    for i in range(n):
+        if ((py[i] > y) != (py[j] > y)) and \
+           (x < (px[j] - px[i]) * (y - py[i]) / (py[j] - py[i] + 1e-10) + px[i]):
+            inside = not inside
+        j = i
+    return inside
+
 # Function to check if a triangle is contained within any obstacle set
-def is_triangle_in_obstacle(triangle, obstacle):
-    return any(all(np.isin(triangle, obs)) for obs in obstacle)
+def is_triangle_in_obstacle(triangle_indices, obstacle_paths):
+    """Efficient check if triangle centroid is within any obstacle."""
+    triangle_coords = POINTS[triangle_indices]
+    centroid = np.mean(triangle_coords, axis=0)
+
+    for path in obstacle_paths:
+        if path.contains_point(centroid):
+            return True
+    return False
+
 
 def triangulate():
-    global co,cf,triangulation,POINTS
-    # Perform Delaunay triangulation
-    triangulation = Delaunay(POINTS)
+    global co, cf, triangulation, POINTS
 
-    # Loop through each triangle in 'space'
+    co = []  # Triangles inside obstacle
+    cf = []  # Triangles in free space
+
+    triangulation = Delaunay(POINTS)
+    obstacle_paths = cache_obstacle_paths()
+
     for triangle in triangulation.simplices:
-        # Check if the triangle is contained within any obstacle set
-        if is_triangle_in_obstacle(triangle, OBSTACLES):
-            # Append the triangle to 'co' if the condition is met
+        if is_triangle_in_obstacle(triangle, obstacle_paths):
             co.append(triangle)
         else:
-            # Append the triangle to 'cf' if the condition is not met
             cf.append(triangle)
 
-    # Convert 'co' and 'cf' to numpy arrays
-    co = np.array(co)
-    cf = np.array(np.unique(cf,axis=0))
-
+    co[:] = np.array(co)
+    cf[:] = np.array(np.unique(cf, axis=0))  # Remove any duplicate triangles
 
 def display_graph(fig,frame):
     graph = FigureCanvasTkAgg(fig,master = frame)
@@ -157,31 +182,45 @@ def display_graph(fig,frame):
 
 
 def triangulation_window():
-    global co,triangulation
+    global co, triangulation
     tri = tk.Toplevel()
     tri.title("Triangular Decomposition")
+    
     tri_frame = tk.Frame(tri)
-    tri_frame.grid(column=1,row=0)
+    tri_frame.grid(column=1, row=0)
+    
     tri_label = tk.Label(tri_frame, text="Triangular Decomposition", font=("Unispace", 16))
     tri_label.pack(pady=10)
-    # Plot the original points and the generated triangles
-    fig, ax = plt.subplots(figsize=(9,9))
-    ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
-    ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-    # Annotate and plot 'START' in blue
+    fig, ax = plt.subplots(figsize=(9, 9))
+    
+    # Plot all triangles
+    ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
+    
+    # Plot all points
+    ax.plot(POINTS[:, 0], POINTS[:, 1], 'o',)
+
+    # Plot START point
     ax.plot(START_XY[0], START_XY[1], 'o', color='blue')
     ax.text(START_XY[0], START_XY[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
-    # Annotate and plot 'END' in red
+    # Plot END point
     ax.plot(END_XY[0], END_XY[1], 'o', color='red')
     ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
+    # Highlight triangles inside obstacles
     for triangle in co:
         co_indices = np.array(triangle)
-        ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1],  color = 'darkorange')
+        coords = triangulation.points[co_indices]
+        ax.fill(coords[:, 0], coords[:, 1], color='darkorange')  # Keep original color and solid fill
 
-    display_graph(fig,tri_frame)
+    
+    # ax.set_title("Triangular Decomposition", fontweight='bold')
+    # ax.set_aspect('equal')
+
+    display_graph(fig, tri_frame)
+
+
 
 
 def dijkstra():
