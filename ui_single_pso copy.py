@@ -340,103 +340,115 @@ def optimize():
     global shortest_path, gb, ub_x, ub_y, lb_x, lb_y, triangulation
     global dijkstra_only_result, pso_result, aco_pso_result
 
-    # Step 1: Common setup
+    # --- Step 1: Common setup (unchanged) ---
     shortest_path_xy = triangulation.points[np.array(shortest_path)]
     path_edges = []
     for i in range(len(shortest_path_xy) - 1):
-        current_triangle = shortest_path_xy[i]
-        next_triangle = shortest_path_xy[i + 1]
-        edge = []
-        for element in current_triangle:
-            if any(np.array_equal(element, next_elem) for next_elem in next_triangle):
-                edge.append(element)
-        if len(edge) == 2:
-            path_edges.append(edge)
+        cur = shortest_path_xy[i]
+        nxt = shortest_path_xy[i + 1]
+        shared = [pt for pt in cur if any(np.array_equal(pt, q) for q in nxt)]
+        if len(shared) == 2:
+            path_edges.append(shared)
 
-    ub_x = [max(edge[0][0], edge[1][0]) for edge in path_edges]
-    lb_x = [min(edge[0][0], edge[1][0]) for edge in path_edges]
-    ub_y = [max(edge[0][1], edge[1][1]) for edge in path_edges]
-    lb_y = [min(edge[0][1], edge[1][1]) for edge in path_edges]
+    ub_x = [max(e[0][0], e[1][0]) for e in path_edges]
+    lb_x = [min(e[0][0], e[1][0]) for e in path_edges]
+    ub_y = [max(e[0][1], e[1][1]) for e in path_edges]
+    lb_y = [min(e[0][1], e[1][1]) for e in path_edges]
 
-    lb = np.array([val for pair in zip(lb_x, lb_y) for val in pair])
-    ub = np.array([val for pair in zip(ub_x, ub_y) for val in pair])
+    lb = np.array([v for pair in zip(lb_x, lb_y) for v in pair])
+    ub = np.array([v for pair in zip(ub_x, ub_y) for v in pair])
     d = len(path_edges)
     n = 2 * d
-    num_particles = 30
-    n_iter = 1000
-    c2 = 0.5
 
-    # Step 2: Store baseline Dijkstra result (for comparison)
+    # --- Step 2: Baseline Dijkstra result ---
     dijkstra_only_result = shortest_path_xy.flatten().tolist()
 
-    # Step 3: Run PSO only (no ACO)
-    particles = [np.random.uniform(lb, ub) for _ in range(num_particles)]
-    particles = np.array(particles)
-    velocity = np.zeros_like(particles)
-    gb = particles[np.argmin(np.apply_along_axis(obj_function_distance, 1, particles))]
+    # --- Step 3: PSO-only baseline ---
+    def run_pso(seed_particle=None):
+        particles = [np.random.uniform(lb, ub) for _ in range(num_particles)]
+        if seed_particle is not None:
+            particles[0] = seed_particle.copy()
+        particles = np.array(particles)
+        velocity = np.zeros_like(particles)
+        gbest = particles[np.argmin(np.apply_along_axis(obj_function_distance, 1, particles))]
+        for i in range(n_iter):
+            idx = np.argmin(np.apply_along_axis(obj_function_distance, 1, particles))
+            cand = particles[idx]
+            if obj_function_distance(cand) < obj_function_distance(gbest):
+                gbest = cand.copy()
+            c1 = 0.0 * (0.99**i) * np.random.uniform(lb, ub)
+            velocity = get_next_velocity(velocity, c1, c2, gbest, particles)
+            particles = get_next_position(particles, velocity, lb, ub)
+        return gbest
 
-    for i in range(n_iter):
-        current_min = np.argmin(np.apply_along_axis(obj_function_distance, 1, particles))
-        current_gbest = particles[current_min]
-        if obj_function_distance(current_gbest) < obj_function_distance(gb):
-            gb = current_gbest
-        c1 = 0. * (pow(0.99, i)) * np.random.uniform(lb, ub)
-        velocity = get_next_velocity(velocity, c1, c2, gb, particles)
-        particles = get_next_position(particles, velocity, lb, ub)
+    num_particles = 30
+    n_iter       = 1000
+    c2           = 0.5
 
-    pso_result = gb.tolist()
+    pso_result   = run_pso().tolist()
 
-    # Step 4: Run ACO
-    NUM_ANTS = 40
-    ACO_ITER = 50
-    offset_limit = 1.0
-    evaporation_rate = 0.8
+       # --- Step 4 (fixed): Tuned ACO with correct pheromone deposits ---
+    NUM_ANTS    = 50
+    ACO_ITER    = 100
+    rho         = 0.2
+    offset_lim  = 0.5
+    alpha, beta = 1.0, 2.0
+
+    straight_lengths = np.array([np.linalg.norm(e[1] - e[0]) for e in path_edges])
+    eta = 1.0 / (straight_lengths + 1e-9)
     pheromone = np.ones(len(path_edges))
 
-    def generate_ant_path():
-        particle = []
-        for edge in path_edges:
-            t = np.random.rand()
-            base_point = (1 - t) * edge[0] + t * edge[1]
-            vec = edge[1] - edge[0]
-            perp = np.array([-vec[1], vec[0]])
-            perp = perp / (np.linalg.norm(perp) + 1e-6)
-            offset = np.random.uniform(-offset_limit, offset_limit)
-            point = base_point + offset * perp
-            particle.extend(point)
-        return np.array(particle)
-
+    best_aco_score    = float('inf')
     best_aco_particle = None
-    best_aco_score = float('inf')
+
+    # This function returns both the point and the edge index chosen
+    def pick_point_and_edge(i_edge):
+        e = path_edges[i_edge]
+        ts = np.linspace(0, 1, 6)
+        weights = (pheromone[i_edge]**alpha) * (eta[i_edge]**beta)
+        weights = np.full(ts.shape, weights)
+        weights /= weights.sum()
+        t_idx = np.random.choice(len(ts), p=weights)
+        t = ts[t_idx]
+        base = (1 - t)*e[0] + t*e[1]
+        perp = np.array([-(e[1][1]-e[0][1]), e[1][0]-e[0][0]])
+        perp /= (np.linalg.norm(perp) + 1e-6)
+        offset = np.random.uniform(-offset_lim, offset_lim)
+        point = base + offset*perp
+        # return the point and which edge index it came from
+        return point, i_edge
 
     for _ in range(ACO_ITER):
-        for _ in range(NUM_ANTS):
-            particle = generate_ant_path()
+        gen_scores = []
+        gen_edge_paths = []  # list of lists of edge indices for each ant
+
+        for ant in range(NUM_ANTS):
+            pts = []
+            edges_used = []
+            for i in range(len(path_edges)):
+                p, used_edge = pick_point_and_edge(i)
+                pts.append(p)
+                edges_used.append(used_edge)
+            particle = np.concatenate(pts)
             score = obj_function_distance(particle)
+            gen_scores.append(score)
+            gen_edge_paths.append(edges_used)
+
             if score < best_aco_score:
-                best_aco_score = score
-                best_aco_particle = particle
-        pheromone *= (1 - evaporation_rate)
+                best_aco_score    = score
+                best_aco_particle = particle.copy()
 
-    # Step 5: Run PSO again, this time using best ACO particle
-    particles = [np.random.uniform(lb, ub) for _ in range(num_particles)]
-    if best_aco_particle is not None:
-        particles[0] = best_aco_particle.copy()
-    particles = np.array(particles)
-    velocity = np.zeros_like(particles)
-    gb = particles[np.argmin(np.apply_along_axis(obj_function_distance, 1, particles))]
+        # evaporate
+        pheromone *= (1 - rho)
 
-    for i in range(n_iter):
-        current_min = np.argmin(np.apply_along_axis(obj_function_distance, 1, particles))
-        current_gbest = particles[current_min]
-        if obj_function_distance(current_gbest) < obj_function_distance(gb):
-            gb = current_gbest
-        c1 = 0. * (pow(0.99, i)) * np.random.uniform(lb, ub)
-        velocity = get_next_velocity(velocity, c1, c2, gb, particles)
-        particles = get_next_position(particles, velocity, lb, ub)
+        # deposit on edges used by the best ant of this generation
+        best_ant_idx = int(np.argmin(gen_scores))
+        deposit_amt  = 1.0 / (gen_scores[best_ant_idx] + 1e-9)
+        for edge_idx in gen_edge_paths[best_ant_idx]:
+            pheromone[edge_idx] += deposit_amt
 
-    aco_pso_result = gb.tolist()
-
+    # --- Step 5: PSO seeded with best ACO particle ---
+    aco_pso_result = run_pso(seed_particle=best_aco_particle).tolist()
 
 
 
@@ -494,7 +506,7 @@ def optimization_window():
     display_graph(fig, plot_frame)
 
     # Distance label in bottom frame
-    res2_label = tk.Label(info_frame, text="Distance: {:.2f} units".format(obj_function_distance(gb)), font=("Helvetica", 16))
+    res2_label = tk.Label(info_frame, text="Distance: {:.2f} units".format(obj_function_distance(aco_pso_result)), font=("Helvetica", 16))
     res2_label.pack(pady=10)
 
     # SIMULATION button
@@ -706,21 +718,6 @@ def set_add_obstacle():
     reset_button_colors()
     obstacle_button.config(bg='lightblue', fg='black')  # Highlight the obstacle button
 
-# def set_finalize_obstacle():
-#     global current_mode, obstacle_points
-#     current_mode = "obstacle"
-#     obstacle_points = []
-#     reset_button_colors()
-#     finalize_button.config(bg='lightblue', fg='black')  
-
-# def draw_obstacle():
-#     global obstacle_points
-#     for i in range(len(obstacle_points)):
-#         x1, y1 = obstacle_points[i]
-#         x2, y2 = obstacle_points[(i+1) % len(obstacle_points)]
-#         canvas.create_line(x1, y1, x2, y2, fill="orange")
-#     obstacle_points = []
-
 # Function to show tooltip on hover
 def show_tooltip(event):
     global tooltip
@@ -931,13 +928,7 @@ def on_canvas_click(event):
         obstacle_points.append([x, y])
     # Update coordinate label
         coord_label.config(text=str(current_mode).capitalize()+" point has been placed at "+coord_text+" !")
-        # finalize_button()
-        # draw_obstacle()
-        # # if len(obstacle_points)==5:
-        #     OBSTACLES_XY.append(np.array([[obstacle_points[0][0],initial_map_size- obstacle_points[0][1]],[obstacle_points[1][0],initial_map_size- obstacle_points[1][1]],[obstacle_points[2][0],initial_map_size- obstacle_points[2][1]],
-        #                                   [obstacle_points[3][0],initial_map_size- obstacle_points[3][1]],[obstacle_points[4][0],initial_map_size- obstacle_points[4][1]]]))
-        #     draw_obstacle()
-
+      
     dot_id = canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline=color)
     dots.append((x, y, radius, coord_text, dot_id, color))
 
