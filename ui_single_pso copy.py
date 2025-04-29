@@ -192,7 +192,7 @@ def triangulation_window():
     tri_label = tk.Label(tri_frame, text="Triangular Decomposition", font=("Unispace", 16))
     tri_label.pack(pady=10)
 
-    fig, ax = plt.subplots(figsize=(9, 9))
+    fig, ax = plt.subplots(figsize=(10, 6))
     
     # Plot all triangles
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
@@ -293,7 +293,7 @@ def dijkstra_window():
         midpoints.append(next_midpoints)
         
     # Plot the original points and the generated triangles
-    fig, ax = plt.subplots(figsize=(9,9))
+    fig, ax = plt.subplots(figsize=(10,6))
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
@@ -476,7 +476,7 @@ def optimization_window():
     opt_label.pack(pady=10)
 
     # Make figure rectangular
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(10, 6))
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
@@ -580,7 +580,7 @@ def comparison_window():
     com_label.grid(column=1, row=0, columnspan=2, pady=10)
 
     # Plot setup
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(10, 6))
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
