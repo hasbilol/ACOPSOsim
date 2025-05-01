@@ -455,11 +455,9 @@ def optimize():
     aco_pso_result = []
 
     for shortest_path in sp:
-            # Change the shortest path array into a numpy array with the coordinates of the triangles instead of the points
-            shortest_path_xy.append(triangulation.points[np.array(shortest_path)])
-    
+        shortest_path_xy.append(triangulation.points[np.array(shortest_path)])
+
     for idx_robot in range(len(sp)):
-        # --- Step 1: Setup for each robot ---
         single_path = sp[idx_robot]
         single_path_xy = triangulation.points[np.array(single_path)]
         shortest_path_xy.append(single_path_xy)
@@ -484,7 +482,6 @@ def optimize():
 
         dijkstra_only_result.append(single_path_xy.flatten().tolist())
 
-        # --- Step 2: PSO-only baseline ---
         def run_pso(seed_particle=None):
             particles = [np.random.uniform(lb, ub) for _ in range(num_particles)]
             if seed_particle is not None:
@@ -506,9 +503,10 @@ def optimize():
         n_iter = 1000
         c2 = 0.5
 
-        pso_result.append(run_pso().tolist())
+        pso_best = run_pso()
+        pso_result.append(pso_best.tolist())
 
-        # --- Step 3: ACO part ---
+        # ACO setup
         NUM_ANTS = 50
         ACO_ITER = 100
         rho = 0.2
@@ -542,6 +540,18 @@ def optimize():
             gen_edge_paths = []
 
             for ant in range(NUM_ANTS):
+                if ant == 0 and len(pso_result) > idx_robot:
+                    pso_seed = np.array(pso_result[idx_robot])
+                    noise = np.random.normal(0, 0.01, size=pso_seed.shape)
+                    particle = pso_seed + noise
+                    score = obj_function_distance(idx_robot, particle)
+                    gen_scores.append(score)
+                    gen_edge_paths.append([])
+                    if score < best_aco_score:
+                        best_aco_score = score
+                        best_aco_particle = particle.copy()
+                    continue
+
                 pts = []
                 edges_used = []
                 for i in range(len(path_edges)):
@@ -562,12 +572,27 @@ def optimize():
             deposit_amt = 1.0 / (gen_scores[best_ant_idx] + 1e-9)
             for edge_idx in gen_edge_paths[best_ant_idx]:
                 pheromone[edge_idx] += deposit_amt
-            
-            offset_lim = max(0.05, offset_lim * 0.95)  # Reduce over time
 
+            offset_lim = max(0.01, offset_lim * (0.95 if _ > ACO_ITER * 0.3 else 1.0))
 
-        # --- Step 4: Final PSO seeded with best ACO particle ---
-        aco_pso_result.append(run_pso(seed_particle=best_aco_particle).tolist())
+        def refine_particle(particle):
+            temp_particles = [particle.copy()] + [particle + np.random.normal(0, 0.02, size=particle.shape) for _ in range(4)]
+            temp_particles = np.array(temp_particles)
+            velocity = np.zeros_like(temp_particles)
+            temp_gbest = temp_particles[np.argmin(np.apply_along_axis(lambda e: obj_function_distance(idx_robot, e), 1, temp_particles))]
+            for _ in range(50):
+                idx = np.argmin(np.apply_along_axis(lambda e: obj_function_distance(idx_robot, e), 1, temp_particles))
+                cand = temp_particles[idx]
+                if obj_function_distance(idx_robot, cand) < obj_function_distance(idx_robot, temp_gbest):
+                    temp_gbest = cand.copy()
+                velocity = get_next_velocity(velocity, 0.1, 0.3, temp_gbest, temp_particles)
+                temp_particles = get_next_position(temp_particles, velocity, lb, ub)
+            return temp_gbest
+
+        best_aco_particle = refine_particle(best_aco_particle)
+        final_aco_pso = run_pso(seed_particle=best_aco_particle)
+        aco_pso_result.append(final_aco_pso.tolist())
+
 
 
 
