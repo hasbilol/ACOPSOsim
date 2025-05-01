@@ -697,148 +697,75 @@ def simulation_window():
     display_graph(plt,sim_frame)
 
 def comparison_window():
-    global G, midpoints, POINTS, robots, END_XY, shortest_path, sp
-    global dijkstra_only_result, pso_result, aco_pso_result, co
+    global midpoints, POINTS, START_XY, END_XY, shortest_path, co
+    global dijkstra_only_result, pso_result, aco_pso_result, robots
 
     com = tk.Toplevel()
     com.title("Comparison of Path Planning Methods (Multi-Robot)")
-
     com_frame = tk.Frame(com)
     com_frame.grid(column=2, row=1, padx=10)
     com_label = tk.Label(com, text="Comparison of Pure Dijkstra vs PSO vs ACO+PSO", font=("Unispace", 16))
     com_label.grid(column=1, row=0, columnspan=2, pady=10)
 
-    # Set up plot
-    fig, ax = plt.subplots(figsize=(8, 6))
+    # Plot setup
+    fig, ax = plt.subplots(figsize=(10, 6))
     ax.triplot(POINTS[:, 0], POINTS[:, 1], triangulation.simplices.copy())
     ax.plot(POINTS[:, 0], POINTS[:, 1], 'o')
 
-   # Start & End points
-    for idx_robot, start_xy in enumerate(robots):
+    # Start & End markers
+    for start_xy in robots:
         ax.plot(start_xy[0], start_xy[1], 'o', color='blue')
-        ax.text(start_xy[0], start_xy[1], f"ROBOT{idx_robot+1}", 
-                verticalalignment='bottom', horizontalalignment='right', 
-                color='blue', fontweight='bold')
-
+        ax.text(start_xy[0], start_xy[1], ' START', verticalalignment='bottom', horizontalalignment='right', color='blue', fontweight='bold')
 
     ax.plot(END_XY[0], END_XY[1], 'o', color='red')
     ax.text(END_XY[0], END_XY[1], ' END', verticalalignment='top', horizontalalignment='left', color='red', fontweight='bold')
 
-    # Path colors and line styles
-    colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan']
+    # === Draw Paths for each robot ===
+    colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan']  # for multiple robots
     line_styles = {'Dijkstra': '--', 'PSO': '-', 'ACO+PSO': '-'}
 
-    midpoints.clear()
-    
-    # === Precompute triangle midpoints ===
-    triangle_midpoints = {}
-    for triangle in G.nodes:
-        triangle_indices = np.array(triangle)
-        triangle_points = triangulation.points[triangle_indices]
-        edge_midpoints = calculate_edge_midpoints(triangle_points)
-        triangle_midpoints[triangle] = edge_midpoints
-
-    all_midpoints = []
-
     for idx_robot in range(len(robots)):
-        color = colors[idx_robot % len(colors)]
+        color = colors[idx_robot % len(colors)]  # cycle through colors
 
-        # === 1. Pure Dijkstra path (midpoints) ===
-        robot_midpoints = []
+        # 1. Pure Dijkstra path
+        dijkstra_path = np.array(dijkstra_only_result[idx_robot])
+        for i in range(0, len(dijkstra_path) - 2, 2):
+            ax.plot([dijkstra_path[i], dijkstra_path[i + 2]],
+                    [dijkstra_path[i + 1], dijkstra_path[i + 3]],
+                    color=color, linestyle='--', label=f'Robot {idx_robot+1} Dijkstra' if i == 0 else "")
+        ax.plot([robots[idx_robot][0], dijkstra_path[0]], [robots[idx_robot][1], dijkstra_path[1]], color=color, linestyle='--')
+        ax.plot([END_XY[0], dijkstra_path[-2]], [END_XY[1], dijkstra_path[-1]], color=color, linestyle='--')
 
-        if idx_robot >= len(sp) or not sp[idx_robot]:
-            all_midpoints.append(robot_midpoints)
-            continue
-
-        for j in range(len(sp[idx_robot]) - 1):
-            current_triangle = sp[idx_robot][j]
-            next_triangle = sp[idx_robot][j+1]
-            common_midpoint = None
-
-            for element in triangle_midpoints.get(current_triangle, []):
-                if any(np.array_equal(element, next_elem) for next_elem in triangle_midpoints.get(next_triangle, [])):
-                    common_midpoint = element
-                    break
-
-            if common_midpoint is not None:
-                robot_midpoints.extend(common_midpoint)  # Add x, y
-
-        all_midpoints.append(robot_midpoints)
-
-        # Draw Dijkstra Path
-        for j in range(0, len(robot_midpoints) - 2, 2):
-            ax.plot(
-                [robot_midpoints[j], robot_midpoints[j+2]],
-                [robot_midpoints[j+1], robot_midpoints[j+3]],
-                color=color, linestyle=line_styles['Dijkstra']
-            )
-        if len(robot_midpoints) >= 2:
-            ax.plot(
-                [robots[idx_robot][0], robot_midpoints[0]],
-                [robots[idx_robot][1], robot_midpoints[1]],
-                color=color, linestyle=line_styles['Dijkstra']
-            )
-            ax.plot(
-                [END_XY[0], robot_midpoints[-2]],
-                [END_XY[1], robot_midpoints[-1]],
-                color=color, linestyle=line_styles['Dijkstra']
-            )
-
-        # === 2. Dijkstra + PSO path ===
+        # 2. Dijkstra + PSO path
         pso_path = np.array(pso_result[idx_robot])
         for i in range(0, len(pso_path) - 2, 2):
-            ax.plot(
-                [pso_path[i], pso_path[i+2]],
-                [pso_path[i+1], pso_path[i+3]],
-                color=color, linestyle=line_styles['PSO'], label=f'Robot {idx_robot+1} PSO' if i == 0 else ""
-            )
-        ax.plot([robots[idx_robot][0], pso_path[0]], [robots[idx_robot][1], pso_path[1]], color=color, linestyle=line_styles['PSO'])
-        ax.plot([END_XY[0], pso_path[-2]], [END_XY[1], pso_path[-1]], color=color, linestyle=line_styles['PSO'])
+            ax.plot([pso_path[i], pso_path[i + 2]],
+                    [pso_path[i + 1], pso_path[i + 3]],
+                    color=color, linestyle='-', label=f'Robot {idx_robot+1} PSO' if i == 0 else "")
+        ax.plot([robots[idx_robot][0], pso_path[0]], [robots[idx_robot][1], pso_path[1]], color=color, linestyle='-')
+        ax.plot([END_XY[0], pso_path[-2]], [END_XY[1], pso_path[-1]], color=color, linestyle='-')
 
-        # === 3. Dijkstra + ACO + PSO path ===
+        # 3. Dijkstra + ACO + PSO path
         aco_path = np.array(aco_pso_result[idx_robot])
         for i in range(0, len(aco_path) - 2, 2):
-            ax.plot(
-                [aco_path[i], aco_path[i+2]],
-                [aco_path[i+1], aco_path[i+3]],
-                color=color, linestyle=line_styles['ACO+PSO'], linewidth=2, label=f'Robot {idx_robot+1} ACO+PSO' if i == 0 else ""
-            )
-        ax.plot([robots[idx_robot][0], aco_path[0]], [robots[idx_robot][1], aco_path[1]], color=color, linestyle=line_styles['ACO+PSO'], linewidth=2)
-        ax.plot([END_XY[0], aco_path[-2]], [END_XY[1], aco_path[-1]], color=color, linestyle=line_styles['ACO+PSO'], linewidth=2)
-
-    # Highlight obstacles
-    for triangle in co:
-        co_indices = np.array(triangle)
-        ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
+            ax.plot([aco_path[i], aco_path[i + 2]],
+                    [aco_path[i + 1], aco_path[i + 3]],
+                    color=color, linestyle='-', linewidth=2, label=f'Robot {idx_robot+1} ACO+PSO' if i == 0 else "")
+        ax.plot([robots[idx_robot][0], aco_path[0]], [robots[idx_robot][1], aco_path[1]], color=color, linestyle='-', linewidth=2)
+        ax.plot([END_XY[0], aco_path[-2]], [END_XY[1], aco_path[-1]], color=color, linestyle='-', linewidth=2)
 
     ax.legend(loc='center right', bbox_to_anchor=(1, 1))
     display_graph(fig, com_frame)
 
-
-    # === Distance Calculations (with Table) ===
+    # === Distance Calculations ===
     res3_frame = tk.Frame(com)
     res3_frame.grid(column=3, row=1, padx=10)
 
-    # Create the Treeview Table
-    columns = ("Robot", "Dijkstra", "PSO", "ACO+PSO", "PSO Reduction (%)", "ACO+PSO Reduction (%)")
-    tree = ttk.Treeview(res3_frame, columns=columns, show='headings', height=len(robots)+2)
-
-    # Define headings
-    for col in columns:
-        tree.heading(col, text=col)
-        tree.column(col, width=130, anchor="center")
-
-    # Insert data
+    results_text = ""
     total_reduction_aco = 0
 
     for idx_robot in range(len(robots)):
-        # Build Dijkstra full path
-        dijkstra_path = [robots[idx_robot][0], robots[idx_robot][1]]
-        dijkstra_path.extend(all_midpoints[idx_robot])
-        dijkstra_path.append(END_XY[0])
-        dijkstra_path.append(END_XY[1])
-
-        dijkstra_score = obj_function_distance(idx_robot, np.array(dijkstra_path))
+        dijkstra_score = obj_function_distance(idx_robot, np.array(dijkstra_only_result[idx_robot]))
         pso_score = obj_function_distance(idx_robot, np.array(pso_result[idx_robot]))
         aco_score = obj_function_distance(idx_robot, np.array(aco_pso_result[idx_robot]))
 
@@ -848,22 +775,22 @@ def comparison_window():
         reduction_aco = diff_aco / dijkstra_score * 100
         total_reduction_aco += reduction_aco
 
-        tree.insert("", "end", values=(
-            f"Robot {idx_robot+1}",
-            f"{dijkstra_score:.2f}",
-            f"{pso_score:.2f}",
-            f"{aco_score:.2f}",
-            f"{reduction_pso:.2f}",
-            f"{reduction_aco:.2f}"
-    ))
+        results_text += (
+            f"Robot {idx_robot+1}:\n"
+            f"  Pure Dijkstra:\t{dijkstra_score:.2f} units\n"
+            f"  Dijkstra + PSO:\t{pso_score:.2f} units\n"
+            f"  Dijkstra + ACO+PSO:\t{aco_score:.2f} units\n"
+            f"  PSO Decrease:\t\t{diff_pso:.2f} units ({reduction_pso:.2f}%)\n"
+            f"  ACO+PSO Decrease:\t{diff_aco:.2f} units ({reduction_aco:.2f}%)\n\n"
+        )
 
-    tree.pack(pady=10)
-
-    # Average ACO+PSO Reduction
     avg_reduction_aco = total_reduction_aco / len(robots)
-    res4_label = tk.Label(res3_frame, text=f"Average ACO+PSO Reduction: {avg_reduction_aco:.2f}%", font=("Unispace", 20), fg="green")
-    res4_label.pack(pady=10)
 
+    res3_label = tk.Label(res3_frame, text=results_text, font=("Helvetica", 14), justify='left')
+    res3_label.pack(pady=10, expand=True, fill='both')
+
+    res4_label = tk.Label(res3_frame, text=f"Average ACO+PSO Reduction: {avg_reduction_aco:.2f}%", font=("Unispace", 20), fg="green")
+    res4_label.pack(expand=True, fill='both')
 
 
 def simulate():
