@@ -152,15 +152,29 @@ def point_in_polygon(point, polygon):
         j = i
     return inside
 
+SAFETY_MARGIN = 5.0  # how far from edges the path should stay
+
+# Cache Path objects for fast lookup
+OBSTACLE_PATHS = [Path(np.array(obs)) for obs in OBSTACLES_XY]
+
 # Function to check if a triangle is contained within any obstacle set
 def is_triangle_in_obstacle(triangle_indices, obstacle_paths):
-    """Efficient check if triangle centroid is within any obstacle."""
+    """Check if triangle centroid or its surroundings are within/near any obstacle."""
     triangle_coords = POINTS[triangle_indices]
     centroid = np.mean(triangle_coords, axis=0)
+    x, y = centroid
 
+    # Offsets around the centroid to simulate safety margin
     for path in obstacle_paths:
         if path.contains_point(centroid):
             return True
+        for dx in [-SAFETY_MARGIN, 0, SAFETY_MARGIN]:
+            for dy in [-SAFETY_MARGIN, 0, SAFETY_MARGIN]:
+                if dx == 0 and dy == 0:
+                    continue
+                nearby_point = (x + dx, y + dy)
+                if path.contains_point(nearby_point):
+                    return True
     return False
 
 
@@ -992,11 +1006,6 @@ def comparison_window():
 
 
 
-    # Average ACO+PSO Reduction
-    # avg_reduction_aco = total_reduction_aco / len(robots)
-    # res4_label = tk.Label(res3_frame, text=f"Average ACO+PSO Reduction: {avg_reduction_aco:.2f}%", font=("Unispace", 20), fg="green")
-    # res4_label.grid(row=1, column=0, pady=10)
-
 
 
 
@@ -1096,16 +1105,61 @@ root.title("ACO-PSO Hybrid Simulator")
 
 # intro()
 
-# Create a new frame to hold all sections
+# Create main frame using grid for better layout control
 main_frame = tk.Frame(root)
-main_frame.pack(fill="both", expand=True)
+main_frame.grid(row=0, column=0, sticky="nsew")
 
-# Create two main frames: one for settings, one for simulation
-settings_frame = tk.Frame(root, bd=2, relief=tk.RIDGE)
-settings_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, padx=10, pady=10)
+root.grid_rowconfigure(0, weight=1)
+root.grid_columnconfigure(0, weight=1)
 
-simulation_frame = tk.Frame(root, bd=2, relief=tk.RIDGE)
-simulation_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
+# Container for simulation area (with scrollbar)
+simulation_container = tk.Frame(main_frame, bd=2, relief=tk.RIDGE)
+simulation_container.grid(row=0, column=0, sticky="nsew", padx=10, pady=0)
+
+main_frame.grid_rowconfigure(0, weight=1)
+main_frame.grid_columnconfigure(0, weight=1)
+
+# Canvas for scrolling simulation_frame
+simulation_canvas = tk.Canvas(simulation_container)
+simulation_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+sim_scrollbar = tk.Scrollbar(simulation_container, orient="vertical", command=simulation_canvas.yview)
+sim_scrollbar.pack(side=tk.RIGHT, fill="y")
+
+simulation_canvas.configure(yscrollcommand=sim_scrollbar.set)
+simulation_canvas.bind('<Configure>', lambda e: simulation_canvas.configure(scrollregion=simulation_canvas.bbox("all")))
+
+# Frame inside the canvas
+simulation_frame = tk.Frame(simulation_canvas)
+simulation_canvas.create_window((0, 0), window=simulation_frame, anchor="n")
+
+# Create a canvas container to center the map inside the simulation frame
+canvas_container = tk.Frame(simulation_frame)
+canvas_container.pack(pady=10)  # Adjust padding if needed
+
+# canvas = tk.Canvas(canvas_container, width=initial_map_size, height=initial_map_size, bg="gray")
+# canvas.pack(anchor="center")
+
+# Container for settings frame with horizontal scrollbar
+settings_container = tk.Frame(main_frame, bd=2, relief=tk.RIDGE)
+settings_container.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+
+# Canvas to enable horizontal scrolling
+settings_canvas = tk.Canvas(settings_container, height=100)  # Adjust height as needed
+settings_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+settings_scrollbar_x = tk.Scrollbar(settings_container, orient="horizontal", command=settings_canvas.xview)
+settings_scrollbar_x.pack(side=tk.BOTTOM, fill="x")
+
+settings_canvas.configure(xscrollcommand=settings_scrollbar_x.set)
+settings_canvas.bind('<Configure>', lambda e: settings_canvas.configure(scrollregion=settings_canvas.bbox("all")))
+
+# Frame inside canvas to hold actual settings widgets
+settings_frame = tk.Frame(settings_canvas)
+settings_canvas.create_window((0, 0), window=settings_frame, anchor="nw")
+
+
+
 
 # Label for Simulation Settings frame
 settings_label = tk.Label(settings_frame, text="Simulation Settings", font=("Unispace", 16))
@@ -1128,7 +1182,7 @@ tooltip = None  # Tooltip for hover
 
 # Create a label to display the map size
 map_size_label = ttk.Label(root, text=f"Map Size: {initial_map_size}x{initial_map_size}")
-map_size_label.pack(pady=10)
+map_size_label.grid(row=1, column=0)
 
 
 def update_map_size(value):
@@ -1185,8 +1239,8 @@ comparison_button.grid(row=1, column=9, padx=5, pady=5)
 
 
 # Label to display coordinates
-coord_label = tk.Label(main_frame, text="", font=tkFont.Font(family="Helvetica", size=10))
-coord_label.grid(row=0, column=1, padx=1, pady=5)
+coord_label = tk.Label(simulation_canvas, text="", font=tkFont.Font(family="Helvetica", size=10))
+coord_label.grid(row=1, column=1, padx=1, pady=5)
 
 
 
@@ -1210,6 +1264,7 @@ def clear_canvas():
     switch_off(dijkstra_button)
     switch_off(optimization_button)
     switch_off(comparison_button)
+    switch_off(optimization_button_pso)
     initialization()
 
 clear_button = tk.Button(button_frame, text="CLEAR", command=clear_canvas,state='disabled', font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg='grey', fg='white')
@@ -1277,8 +1332,8 @@ simulation_label = tk.Label(simulation_frame, text="Map", font=("Unispace", 16))
 simulation_label.pack(pady=10)
 
 # Set canvas size to 1000x1000 and create event bindings
-canvas = tk.Canvas(simulation_frame, width=initial_map_size, height=initial_map_size, bg='grey')
-canvas.pack()
+canvas = tk.Canvas(simulation_frame, width=initial_map_size, height=initial_map_size, bg='gray')
+canvas.pack(expand=True, anchor='center')
 canvas.bind("<Button-1>", on_canvas_click)
 canvas.bind("<Motion>", show_tooltip)
 canvas.bind("<Leave>", lambda e: hide_tooltip())
