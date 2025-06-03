@@ -1158,6 +1158,23 @@ settings_canvas.bind('<Configure>', lambda e: settings_canvas.configure(scrollre
 settings_frame = tk.Frame(settings_canvas)
 settings_canvas.create_window((0, 0), window=settings_frame, anchor="nw")
 
+def _on_mousewheel(event):
+    simulation_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+def _on_enter(event):
+    simulation_canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows and Linux
+    simulation_canvas.bind_all("<Button-4>", _on_mousewheel)    # Scroll up
+    simulation_canvas.bind_all("<Button-5>", _on_mousewheel)    # scroll down
+
+def _on_leave(event):
+    simulation_canvas.unbind_all("<MouseWheel>")
+    simulation_canvas.unbind_all("<Button-4>")
+    simulation_canvas.unbind_all("<Button-5>")
+
+simulation_frame.bind("<Enter>", _on_enter)
+simulation_frame.bind("<Leave>", _on_leave)
+
+
 
 
 
@@ -1226,10 +1243,10 @@ obstacle_button = tk.Button(button_frame, text="ADD OBSTACLE", command=set_add_o
 finalize_button = tk.Button(button_frame, text="FINALIZE OBSTACLE", command=finalize_obstacle, font=btn_font, padx=btn_padx, pady=btn_pady, relief=btn_relief, bg=btn_bg, fg=btn_fg)
 # finalize_button.pack(pady=5,padx=5,fill='x')
 
-robot_button.grid(row=1, column=0, padx=5, pady=5)
-end_button.grid(row=1, column=1, padx=5, pady=5)
-obstacle_button.grid(row=1, column=2, padx=5, pady=5)
-finalize_button.grid(row=1, column=3, padx=5, pady=5)
+robot_button.grid(row=1, column=2, padx=5, pady=5)
+end_button.grid(row=1, column=3, padx=5, pady=5)
+obstacle_button.grid(row=1, column=0, padx=5, pady=5)
+finalize_button.grid(row=1, column=1, padx=5, pady=5)
 
 triangulation_button.grid(row=1, column=5, padx=5, pady=5)
 dijkstra_button.grid(row=1, column=6, padx=5, pady=5)
