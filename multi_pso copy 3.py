@@ -931,7 +931,7 @@ def comparison_window():
 
     # Path colors and line styles
     # colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan']
-    line_styles = {'Dijkstra': '--', 'PSO': '-', 'ACO+PSO': '-'}
+    line_styles = {'Dijkstra': '--', 'PSO': '-', 'ACO+PSO': '--'}
 
     midpoints.clear()
     
@@ -1006,7 +1006,7 @@ def comparison_window():
             ax.plot(
                 [aco_path[i], aco_path[i+2]],
                 [aco_path[i+1], aco_path[i+3]],
-                color=color, linestyle=line_styles['ACO+PSO'], linewidth=2, label=f'Robot {idx_robot+1} ACO+PSO' if i == 0 else ""
+                color=color, linestyle=line_styles['ACO+PSO'], linewidth=3, label=f'Robot {idx_robot+1} ACO+PSO' if i == 0 else ""
             )
         ax.plot([robots[idx_robot][0], aco_path[0]], [robots[idx_robot][1], aco_path[1]], color=color, linestyle=line_styles['ACO+PSO'], linewidth=2)
         ax.plot([END_XY[0], aco_path[-2]], [END_XY[1], aco_path[-1]], color=color, linestyle=line_styles['ACO+PSO'], linewidth=2)
