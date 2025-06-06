@@ -654,9 +654,9 @@ def optimization_window_aco_pso():
         ax.plot([END_XY[0], result[-2]], [END_XY[1], result[-1]], color=colors[i], linestyle='-')
 
     # Highlight triangles
-    for triangle in shortest_path:
-        triangle_indices = np.array(triangle)
-        ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
+    # for triangle in shortest_path:
+    #     triangle_indices = np.array(triangle)
+    #     ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
     for triangle in co:
         co_indices = np.array(triangle)
         ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
@@ -772,9 +772,9 @@ def optimization_window_pso():
         ax.plot([END_XY[0], result[-2]], [END_XY[1], result[-1]], color=colors[i], linestyle='-')
 
     # Highlight triangles
-    for triangle in shortest_path:
-        triangle_indices = np.array(triangle)
-        ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
+    # for triangle in shortest_path:
+    #     triangle_indices = np.array(triangle)
+    #     ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
     for triangle in co:
         co_indices = np.array(triangle)
         ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
