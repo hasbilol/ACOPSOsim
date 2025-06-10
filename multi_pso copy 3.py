@@ -332,10 +332,13 @@ def dijkstra_window():
     # Calculate midpoints for all triangles
     triangle_midpoints = {}
     for triangle in G.nodes:
-        triangle_indices = np.array(triangle)
-        triangle_points = triangulation.points[triangle_indices]
-        edge_midpoints = calculate_edge_midpoints(triangle_points)
-        triangle_midpoints[triangle] = edge_midpoints
+        if len(midpoints)==len(robots):
+            break
+        else:
+            triangle_indices = np.array(triangle)
+            triangle_points = triangulation.points[triangle_indices]
+            edge_midpoints = calculate_edge_midpoints(triangle_points)
+            triangle_midpoints[triangle] = edge_midpoints
 
     for i in range(len(robots)):
         if i >= len(sp) or not sp[i]:
