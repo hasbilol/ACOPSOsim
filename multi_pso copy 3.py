@@ -306,13 +306,19 @@ def distance(point1, point2):
     return np.sqrt(np.sum((np.array(point1) - np.array(point2)) ** 2))
 
 
-def obj_function_distance(j,particles):
+def obj_function_distance(j, particles):
     global total_distance
-    total_distance = distance(robots, (particles[0], particles[1]))
+    total_distance = distance(robots[j], (particles[0], particles[1]))
+    
+    # Sum distances between waypoints
     for i in range(0, len(particles) - 3, 2):
         total_distance += distance((particles[i], particles[i + 1]), (particles[i + 2], particles[i + 3]))
-    total_distance += distance(robots[j],[particles[0],particles[1]])
+    
+    # Add distance from last waypoint to END_XY
+    total_distance += distance((particles[-2], particles[-1]), END_XY)
+    
     return total_distance
+
 
 
 def dijkstra_window():
