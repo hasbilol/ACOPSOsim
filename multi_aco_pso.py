@@ -855,9 +855,6 @@ def optimization_window_pso():
     total_label.grid(row=len(robot_distances)+2, column=0, columnspan=2)
 
 
-
-
-
 def simulation_window():
     global gbests,co,shortest_path
     plt.close('all')
