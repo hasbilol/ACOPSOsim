@@ -625,7 +625,7 @@ def optimization_window_aco_pso():
 
     opt = tk.Toplevel()
     opt.title("Hybrid Ant Colony Optimization and Particle Swarm Optimization")
-
+    opt.iconbitmap("ACO.ico")
     # Top-level container
     container = tk.Frame(opt)
     container.pack(fill=tk.BOTH, expand=True)
@@ -743,6 +743,7 @@ def optimization_window_pso():
 
     opt = tk.Toplevel()
     opt.title("Particle Swarm Optimization")
+    opt.iconbitmap("PSO_Logo.ico")
 
     # Top-level container
     container = tk.Frame(opt)
@@ -1207,28 +1208,28 @@ def draw_grid():
 
 def intro():
     intro = tk.Toplevel()
-    intro.iconbitmap("PSO_Logo2.ico")
     intro.title("Beginner's guide")
     intro_frame = tk.Frame(intro,padx=10,pady=10)
     intro_frame.pack()
-    intro_label = tk.Label(intro_frame,text= "Particle Swarm Optimization Simulator", font = ("Unispace",16,"bold italic"),padx=10,pady=10)
+    intro_label = tk.Label(intro_frame, text="Hybrid Ant Colony and Particle Swarm Optimization Simulator",
+                       font=("Segoe UI", 16, "bold italic"), padx=10, pady=10)
     intro_label.pack(pady=10)
-    message = """   A particle swarm optimization simulator that takes in a set of coordinates for the robots,\n   end points and obstacle points.\n\n    The following constraints are implemented for best performance:\n\n\n
+    message = """   A particle swarm optimization simulator that takes in a set of coordinates for the robots,\n   end points and obstacle points.\n\n    The following constraints are implemented for best performance:\n
                 - Obstacle boundaries are assumed to be extended 
                   beforehand by the size of the robot to ensure seamless
-                  movement of robot
-                - Obstacles are set as pentagons for simplicity\n
+                  movement of robot\n
+                - Obstacles points must be at least 3 points to create any polygon-shaped obstacles\n
                 - Max robots are 3\n
                 - Max end point is 1\n"""
-    para_label = tk.Label(intro,text=message,font=("Arial Narrow",16),justify='left')
+    para_label = tk.Label(intro, text=message, font=("Segoe UI", 13), justify='left')
     para_label.pack(pady=10 ,padx=10)
 
 
 root = tk.Tk()
 root.title("ACO-PSO Hybrid Simulator")
-# root.iconbitmap("PSO_Logo2.ico")
+root.iconbitmap("robot.ico")
 
-# intro()
+intro()
 
 # Create main frame using grid for better layout control
 main_frame = tk.Frame(root)
@@ -1261,9 +1262,6 @@ simulation_canvas.create_window((0, 0), window=simulation_frame, anchor="n")
 # Create a canvas container to center the map inside the simulation frame
 canvas_container = tk.Frame(simulation_frame)
 canvas_container.pack(pady=10)  # Adjust padding if needed
-
-# canvas = tk.Canvas(canvas_container, width=initial_map_size, height=initial_map_size, bg="gray")
-# canvas.pack(anchor="center")
 
 # Container for settings frame with horizontal scrollbar
 settings_container = tk.Frame(main_frame, bd=2, relief=tk.RIDGE)
@@ -1304,11 +1302,11 @@ simulation_frame.bind("<Leave>", _on_leave)
 
 
 # Label for Simulation Settings frame
-settings_label = tk.Label(settings_frame, text="Simulation Settings", font=("Unispace", 16))
+settings_label = tk.Label(settings_frame, text="Simulation Settings", font=("Courier New", 16, "bold"))
 settings_label.pack(pady=10)
 
 # Styling
-btn_font = tkFont.Font(family="Lexend", size=10)
+btn_font = tkFont.Font(family="Segoe UI", size=10)
 btn_padx = 10
 btn_pady = 10
 btn_relief = tk.FLAT
@@ -1442,7 +1440,7 @@ def on_canvas_click(event):
 
 
 # Label for Simulation frame
-simulation_label = tk.Label(simulation_frame, text="Map", font=("Unispace", 16))
+simulation_label = tk.Label(simulation_frame, text="Map", font=("Courier New", 16, "bold"))
 simulation_label.pack(pady=10)
 
 # Set canvas size to 1000x1000 and create event bindings
@@ -1452,9 +1450,7 @@ canvas.bind("<Button-1>", on_canvas_click)
 canvas.bind("<Motion>", show_tooltip)
 canvas.bind("<Leave>", lambda e: hide_tooltip())
 
-#Load Icons
-robot_icon = PhotoImage(file="robot.png") 
-# flag_icon = PhotoImage(file="flag_icon.png")    
+    
 
 
 
