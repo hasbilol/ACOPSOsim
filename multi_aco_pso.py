@@ -1209,6 +1209,7 @@ def draw_grid():
 def intro():
     intro = tk.Toplevel()
     intro.title("Beginner's guide")
+    intro.iconbitmap("ACO.ico")
     intro_frame = tk.Frame(intro,padx=10,pady=10)
     intro_frame.pack()
     intro_label = tk.Label(intro_frame, text="Hybrid Ant Colony and Particle Swarm Optimization Simulator",
@@ -1376,6 +1377,40 @@ optimization_button.pack(pady=(0,5), fill="x")
 comparison_button.pack(pady=(0,5), fill="x")
 clear_button.pack(pady=(30,5), fill="x")
 
+def create_tooltip(widget, text):
+    tooltip = tk.Toplevel(widget)
+    tooltip.withdraw()
+    tooltip.overrideredirect(True)
+    label = tk.Label(tooltip, text=text, background="lightyellow", borderwidth=1, relief="solid", font=("Arial", 8))
+    label.pack()
+
+    def enter(event):
+        x, y, _, _ = widget.bbox("insert")
+        x += widget.winfo_rootx()
+        y += widget.winfo_rooty() + 25
+        tooltip.geometry(f"+{x}+{y}")
+        tooltip.deiconify()
+
+    def leave(event):
+        tooltip.withdraw()
+
+    widget.bind("<Enter>", enter)
+    widget.bind("<Leave>", leave)
+
+# Tooltips
+create_tooltip(obstacle_button, "Start drawing an obstacle")
+create_tooltip(finalize_button, "Finish obstacle drawing")
+create_tooltip(robot_button, "Place robot starting point")
+create_tooltip(end_button, "Place the target end point")
+create_tooltip(simulate_button, "Simulate all robot paths")
+create_tooltip(triangulation_button, "Show the Triangulated cells")
+create_tooltip(dijkstra_button, "Show the Dijkstra's paths")
+create_tooltip(optimization_button_pso, "Show the optimized paths using PSO only")
+create_tooltip(optimization_button, "Show the optimized paths using hybrid ACO-PSO ")
+
+
+# Tooltip for clear
+create_tooltip(clear_button, "Reset the canvas")
 
 # Label to display coordinates
 coord_label = tk.Label(simulation_canvas, text="", font=tkFont.Font(family="Helvetica", size=10))
@@ -1449,10 +1484,6 @@ canvas.pack(expand=True, anchor='center')
 canvas.bind("<Button-1>", on_canvas_click)
 canvas.bind("<Motion>", show_tooltip)
 canvas.bind("<Leave>", lambda e: hide_tooltip())
-
-    
-
-
 
 # Draw grid lines
 draw_grid()
