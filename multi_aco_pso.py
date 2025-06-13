@@ -243,15 +243,7 @@ def triangulation_window():
         coords = triangulation.points[co_indices]
         ax.fill(coords[:, 0], coords[:, 1], color='darkorange')  # Solid fill for obstacles
 
-    # --- Plot shortest paths for each robot ---
-    # for idx, path in enumerate(sp):
-    #     path_points = triangulation.points[np.array(path)]
-    #     for i in range(len(path_points) - 1):
-    #         start = path_points[i].mean(axis=0)  # Midpoint of triangle vertices
-    #         end = path_points[i + 1].mean(axis=0)
-    #         ax.plot([start[0], end[0]], [start[1], end[1]],
-    #                 color=colors[idx], linestyle='-', linewidth=2,
-    #                 label=f'Robot {idx+1} Path' if i == 0 else "")  # Only label first line
+    
 
     # Handle duplicate labels in legend
     handles, labels = ax.get_legend_handles_labels()
@@ -662,10 +654,7 @@ def optimization_window_aco_pso():
         ax.plot([robots[i][0], result[0]], [robots[i][1], result[1]], color=colors[i], linestyle='-')
         ax.plot([END_XY[0], result[-2]], [END_XY[1], result[-1]], color=colors[i], linestyle='-')
 
-    # Highlight triangles
-    # for triangle in shortest_path:
-    #     triangle_indices = np.array(triangle)
-    #     ax.fill(triangulation.points[triangle_indices, 0], triangulation.points[triangle_indices, 1], alpha=0.5, color='lightblue')
+
     for triangle in co:
         co_indices = np.array(triangle)
         ax.fill(triangulation.points[co_indices, 0], triangulation.points[co_indices, 1], color='darkorange')
