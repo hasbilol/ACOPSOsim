@@ -1204,7 +1204,7 @@ def intro():
     intro_label = tk.Label(intro_frame, text="Hybrid Ant Colony and Particle Swarm Optimization Simulator",
                        font=("Segoe UI", 16, "bold italic"), padx=10, pady=10)
     intro_label.pack(pady=10)
-    message = """   A particle swarm optimization simulator that takes in a set of coordinates for the robots,\n   end points and obstacle points.\n\n    The following constraints are implemented for best performance:\n
+    message = """   A hybrid ant colony and particle swarm optimization simulator that takes in a set of coordinates for the robots,\n   end points and obstacle points.\n\n    The following constraints are implemented for best performance:\n
                 - Obstacle boundaries are assumed to be extended 
                   beforehand by the size of the robot to ensure seamless
                   movement of robot\n
