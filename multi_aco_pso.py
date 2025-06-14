@@ -213,7 +213,7 @@ def triangulation_window():
     tri_frame = tk.Frame(tri)
     tri_frame.grid(column=1, row=0)
     
-    tri_label = tk.Label(tri_frame, text="Triangular Decomposition", font=("Unispace", 16))
+    tri_label = tk.Label(tri_frame, text="Triangular Decomposition", font=("Courier New", 16, "bold"))
     tri_label.pack(pady=10)
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -321,7 +321,7 @@ def dijkstra_window():
     dji_frame = tk.Frame(dji)
     dji_frame.grid(column=1, row=1, padx=10)
 
-    dji_label = tk.Label(dji, text="Dijkstra's Algorithm", font=("Unispace", 16))
+    dji_label = tk.Label(dji, text="Dijkstra's Algorithm", font=("Courier New", 16, "bold"))
     dji_label.grid(column=1, row=0, columnspan=2, pady=10)
 
     # Initialize midpoints safely
@@ -630,7 +630,7 @@ def optimization_window_aco_pso():
     info_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
     # Plot title
-    opt_label = tk.Label(plot_frame, text="Hybrid Ant Colony Optimization and Particle Swarm Optimization", font=("Unispace", 16))
+    opt_label = tk.Label(plot_frame, text="Hybrid Ant Colony Optimization and Particle Swarm Optimization", font=("Courier New", 16, "bold"))
     opt_label.pack(pady=10)
 
     # Make figure rectangular
@@ -746,7 +746,7 @@ def optimization_window_pso():
     info_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
     # Plot title
-    opt_label = tk.Label(plot_frame, text="Particle Swarm Optimization", font=("Unispace", 16))
+    opt_label = tk.Label(plot_frame, text="Particle Swarm Optimization", font=("Courier New", 16, "bold"))
     opt_label.pack(pady=10)
 
     # Make figure rectangular
@@ -904,7 +904,7 @@ def comparison_window():
 
     com_frame = tk.Frame(com)
     com_frame.grid(column=2, row=1, padx=10)
-    com_label = tk.Label(com, text="Comparison of Pure Dijkstra vs PSO vs ACO+PSO", font=("Unispace", 16))
+    com_label = tk.Label(com, text="Comparison of Pure Dijkstra vs PSO vs ACO+PSO", font=("Courier New", 16, "bold"))
     com_label.grid(column=1, row=0, columnspan=2, pady=10)
 
     # Set up plot
