@@ -1,9 +1,8 @@
 import tkinter as tk
 from tkinter import font as tkFont
 from tkinter import ttk
-from tkinter import PhotoImage
 import numpy as np
-from scipy.spatial import Delaunay,ConvexHull
+from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg,NavigationToolbar2Tk
